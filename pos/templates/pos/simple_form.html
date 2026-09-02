@@ -1,0 +1,23 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<section class="card" style="max-width:760px">
+  <div class="card__body">
+    {% if form.non_field_errors %}
+      <div class="alert alert--error">{{ form.non_field_errors.0 }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}
+          {% include "pos/_field.html" with field=field %}
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Save</button>
+        <a class="btn btn--ghost" href="{% url cancel_url %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,51 @@
+id,name,category,subcategory,brand,price,old_price,discount_percent,final_price,stock,rating,review_count,image_url
+1,BPM Chola 500gm,Dal or Lentil,Packed Daal,BPM,67,67,0,67,40,4.5,38,https://d2t8nl1y0ie1km.cloudfront.net/images/6952640538648239adbc9ae4_BPM-Chola-500gm_1.webp
+2,Paragon Chicken Spring Roll 400gm,Frozen,Frozen Snacks Others,Paragon,262,320,18,262,20,3.8,22,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa96aed61902ef2307b50f_Paragon-Chicken-Spring-Roll-400gm_1.webp
+3,Haiko Black Pepper 30gm (Pet),Spices,Mixed Spice,Haiko,150,150,0,150,20,4.1,26,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6853e22d0c1fa0ca8bae447e_Haiko-Black-Pepper-30gm-Pet_1.webp
+4,Kellogg's Chocos Variety Pack(5x20(+)2) 110(+)10gm,Breakfast,Cereals,Kellogg's,100,100,0,100,50,4,54,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa96c1d61902ef2307b5f3_Kelloggs-Chocos-Variety-Combo-Save-20tk_1.webp
+5,Bellissimo Primo Coffe Bar Ice Cream 70ml,Food,Ice Cream,Bellissimo,44,50,12,44,30,4.6,37,https://d2t8nl1y0ie1km.cloudfront.net/images/69529e11c276531e00944cd3_Bellissimo-Primo-Coffe-Bar-Ice-Cream-70ml_1.webp
+6,Kodomo Baby Powder Natural Soft 160g(+)20gm,Baby Food & Care,Baby Bath & Skincare,Kodomo,670,870,23,670,80,4.5,83,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6655ae018b70ee8a4383446a_Kodomo-Baby-Powder-Natural-Soft-Protection-20020gm_1.webp
+7,Foster Clark's Food Essence Mango 28 ml,Baking Needs,Colours & Flavors,Foster Clark's,140,140,0,140,60,4.8,69,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa95e0115075f231eccb49_Foster-Clarks-Food-Essence-Mango-28-ml_1.webp
+8,Chashi Chinigura Rice 5kg,Rice,Packed Rice,Chashi,1100,1100,0,1100,15,3.9,16,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa94eb115075f231ec57c1_Chashi-Chinigura-Rice-5kg_1.webp
+9,ACI Fun Ghee Toast Biscuit 200(+)15gm,Biscuits,Toast Biscuit,ACI,75,80,6,75,15,4.3,9,https://d2t8nl1y0ie1km.cloudfront.net/images/69529ec1846ae6a8d85748ad_ACI-Fun-Ghee-Toast-Biscuit-200gm_1.webp
+10,Jet Classic Detergent Powder 200(+)20gm,Home Cleaning,Laundry,Jet,60,60,0,60,30,3.8,55,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9552115075f231ecaea6_Jet-Detergent-Powder-20020gm_1.webp
+11,Seylon Family Blend Tea 200gm,Tea,Tea Others,Seylon,105,125,16,105,60,4,45,https://d2t8nl1y0ie1km.cloudfront.net/images/6881de829b4616728f45b2e0_Seylon-Family-Blend-Tea-200gm_1.webp
+12,Paragon Chicken Nuggets 300gm,Frozen,Nuggets,Paragon,204,240,15,204,15,4.4,52,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa96afd61902ef2307b517_Paragon-Chicken-Nuggets-300gm_1.webp
+13,Fresh Super Premium Salt 1kg,Salt & Sugar,Salt,Fresh,34,42,19,34,80,3.8,107,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa94ea115075f231ec570c_Fresh-Super-Premium-Salt-1kg_1.webp
+14,Himalaya Neem & Turmeric Soap 125gm,Beauty Care,Body Wash,Himalaya,75,85,12,75,15,4,38,https://d2t8nl1y0ie1km.cloudfront.net/images/6a61cfbc881648e68a2ea86a_Himalaya-Neem-Turmeric-Soap-125gm_1.webp
+15,King's Sunflower Oil 5Ltr.,Oil,Sunflower Oil,King's,1800,2100,14,1800,30,4.5,48,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa94d4115075f231ec4f59_Kings-Brand-Sunflower-Oil-5L_1.webp
+16,Sprite 250ml (Can),Drinks,Soft Drinks,Sprite,80,80,0,80,30,4.4,20,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/66963bfb414c61225be9c5af_Sprite-250ml-can_1.webp
+17,Fresh Mejanda Drink 250ml (Pet Bottle),Drinks,Soft Drinks,Fresh,20,20,0,20,30,4,50,https://d2t8nl1y0ie1km.cloudfront.net/images/695263c638648239adbc8f1b_Fresh-Mejanda-Drink-250ml-Pet_1.webp
+18,Aarong Dairy Butter 200gm,Dairy,Butter,Aarong Dairy,270,270,0,270,15,4.4,48,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9505115075f231ec6a94_Aarong-Dairy-Butter-200gm_1.webp
+19,Ruchi Orange Jam 500(+)20gm,Breakfast,Jam & Jelly,Ruchi,220,220,0,220,25,4.7,54,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9673d61902ef2307b1a3_Ruchi-Orange-Jam-500g20gm_1.webp
+20,Telapiya Fresh Local Cultured 200gm+,Fish,Fresh Water Fish,Local,235,235,0,235,25,3.8,30,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6790ae20976639d257255675_Telapiya-frs-loc-mym-cul-RC-4-5-pcskg_1.webp
+21,Farm Fresh Yogurt (Sweet) 500ml,Dairy,Yogurt,Farm Fresh,150,150,0,150,50,4.7,67,https://d2t8nl1y0ie1km.cloudfront.net/images/default-product.webp
+22,Hit Cockroaches Aerosol 625ml (India),Home Cleaning,Pest Control,Hit,495,530,7,495,15,4.6,16,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/66f37b0ed757d87bcf41290b_Hit-Cockroaches-Aerosol-625ml-India_1.webp
+23,ACI Pure Fortified Katari Rice 5kg,Rice,Packed Rice,ACI,510,520,2,510,80,4.2,85,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/67878a48733b6682a0da276c_2401921_1.webp
+24,Sensodyne Complete Protection + Mouthwash 250ml,Beauty Care,Oral Care,Sensodyne,550,550,0,550,40,4,27,https://d2t8nl1y0ie1km.cloudfront.net/images/default-product.webp
+25,Cowhead Slim Pure Milk 1Ltr.,Liquid & UHT Milk,Milk Others,Cowhead,470,470,0,470,60,4.9,87,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6728a0c53a11aefc405bc0f3_Cowhead-Slim-Pure-Milk-1L_1.webp
+26,Mithai Soanpapdi Elachi 200gm,Snacks,Local Snacks,Mithai,130,130,0,130,40,4.2,57,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa96ccd61902ef2307b677_Mithai-Soanpapdi-Elachi-200gm_1.webp
+27,Khashir Mangsho (Mutton Premium),Meat,Mutton,Local,1349,1359,1,1349,80,3.9,80,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/668d1a316465c458a3e0fc55_Khashir-Mangsho_1.webp
+28,Beef Butterfly (Kg),Meat,Beef,Local,1450,1450,0,1450,20,3.9,50,https://d2t8nl1y0ie1km.cloudfront.net/images/default-product.webp
+29,Rupchanda (Pomfret) Fresh Local Captured (8-10 Pcs/kg),Fish,Sea Fish,Local,1290,1290,0,1290,30,4.7,32,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6665248aa44f60e9a9a63142_Rupchanda-Medium_1.webp
+30,EV Water Bottle Aqua White,Kitchen Essentials,Storage & Containers,EV,105,210,50,105,60,4.5,61,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/668e237f21359d72afc26e52_S203035-EV-Water-Bottle-Aqua-White_1.webp
+31,Nescafe Classic 200(+)20gm (Jar),Coffee,Instant Coffee,Nescafe,950,970,2,950,30,4.7,61,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9389115075f231ec4af6_Nescafe-Classic-200gm-Jar_1.webp
+32,Meril Baby Oil 100ml,Baby Food & Care,Baby Bath & Skincare,Meril,280,280,0,280,60,4.6,79,https://d2t8nl1y0ie1km.cloudfront.net/images/692ed714d5287d4d62f6345a_Meril-Baby-Oil-100ml_1.webp
+33,Foster Clark's Corn Flour+400gm (Tin),Baking Needs,Atta Maida & Suji,Foster Clark's,430,430,0,430,40,4.4,43,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/66827b5ae605f3fd35f16d06_Foster-Clarks-Corn-Flour400gm-Tin_1.webp
+34,Teer Mustard Oil 250ml,Oil,Mustard Oil,Teer,95,95,0,95,60,4.9,26,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/66813504f077212bd74ef2da_Teer-Mustard-Oil-250ml_1.webp
+35,Mr.Noodles Korean Kimchi Ramen 480gm,Snacks,Noodles,Mr.Noodles,210,210,0,210,80,4.2,108,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6853e29c0c1fa0ca8bae4abe_Mr-Noodles-Korean-Kimchi-Ramen-480gm_1.webp
+36,Lunch Box 1590ml BL10349P,Kitchen Essentials,Storage & Containers,Generic,475,950,50,475,15,4.4,28,https://d2t8nl1y0ie1km.cloudfront.net/images/6a12fa0932485cd3a20b0694_Lunch-Box-1590ml-BL10349P_1.webp
+37,Shwapno Moog Dal 1kg,Dal or Lentil,Packed Daal,Shwapno,165,175,6,165,30,4.7,28,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/665e84ae673683244576a8f8_Shwapno-Moog-Dal-1Kg_1.webp
+38,Twinings Green Tea & Lemon 50(+)10gm (25 Tea Bag),Tea,Green Tea,Twinings,880,880,0,880,20,4.5,40,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa93a6115075f231ec4c6a_Twinings-Green-Tea-Lemon-5010gm-25-Tea-Bag_1.webp
+39,Nescafe Gold Coffee 47.5(+)2.5gm,Coffee,Instant Coffee,Nescafe,545,750,27,545,25,4.7,58,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa93ad115075f231ec4cc6_Nescafe-Gold-Coffee-47-52-5gm_1.webp
+40,Calendar Anarosh (Pineapple) 600gm+ Per Pcs,Fruits & Vegetables,Fresh Fruits,Local,42,42,0,42,25,4.4,30,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/665e84bc673683244576a964_Pineapple-Calendar-Anarosh_1.webp
+41,Shomoi New Gift Bag Small,Toys & Sports,Toys Items,Shomoi,99,99,0,99,50,4.6,41,https://d2t8nl1y0ie1km.cloudfront.net/images/default-product.webp
+42,Suito Calorie & Fat Free Sweetener 25 Sachet,Salt & Sugar,Sugar,Suito,77.5,77.5,0,77.5,60,3.9,80,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/66844d4af2321da2357f5fb6_Suito-Calo-Fat-Free-Sweetener-25-Sachet_1.webp
+43,Cadbury Dairy Milk Silk Oreo Chocolate 130(+)5gm,Food,Candy & Chocolate,Cadbury,519,550,6,519,25,4.1,66,https://d2t8nl1y0ie1km.cloudfront.net/images/6875ffea8e2959ae3f7b1382_Cadbury-Dairy-Milk-Silk-Oreo-Chocolate-130gm_1.webp
+44,Aarong Dairy Chocolate Milk Drink UHT 200ml,Liquid & UHT Milk,Milk Others,Aarong Dairy,35,35,0,35,15,4.1,9,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9502115075f231ec6917_Aarong-Dairy-Choco-Milk-UHT-Flavor-200ml_1.webp
+45,Supta Balloon Heart,Toys & Sports,Toys Items,Supta,99,99,0,99,40,3.9,39,https://d2t8nl1y0ie1km.cloudfront.net/images/default-product.webp
+46,Khezur (Dates) Dubai Dabbas Loose,Fruits & Vegetables,Dry Fruits,Local,625,625,0,625,60,4.1,84,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9764d61902ef2307c9d2_Dates-Khezur-Dabbas-Loose_1.webp
+47,ACI Pure Cumin (Jeera) Powder 200gm (Jar),Spices,Regular Spice,ACI,320,330,3,320,100,3.9,66,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/6853e2490c1fa0ca8bae4624_Aci-Pure-Cumin-Powder-200gm-Jar_1.webp
+48,Fresh Kitchen Towel Single Pack White,Home & Kitchen,Kitchen Accessories,Fresh,85,85,0,85,50,4.1,59,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa9578115075f231ecc642_Fresh-Kitchen-Towel-Single-Pack-White_1.webp
+49,Diamond Aluminium Foil Paper 37.5 Sq. Ft.,Home & Kitchen,Kitchen Accessories,Diamond,125,125,0,125,20,4.5,38,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa955f115075f231ecc503_Diamond-Aluminium-Foil-Paper-37-5-Sq-Ft-_1.webp
+50,Ifad Cheesy Bites Biscuits 180(+)10gm,Biscuits,Biscuits Others,Ifad,85,100,15,85,50,4.2,85,https://d2t8nl1y0ie1km.cloudfront.net/images/thumbs/65fa967fd61902ef2307b2bf_Ifad-Cheesy-Bites-Biscuits-18010gm_1.webp

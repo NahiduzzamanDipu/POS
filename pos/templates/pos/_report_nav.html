@@ -1,0 +1,8 @@
+<nav class="report-tabs">
+  <a href="{% url 'pos:report_daily' %}" class="report-tab {% if request.resolver_match.url_name == 'report_daily' %}is-active{% endif %}">Daily Report</a>
+  <a href="{% url 'pos:report_monthly' %}" class="report-tab {% if request.resolver_match.url_name == 'report_monthly' %}is-active{% endif %}">Monthly Report</a>
+  <a href="{% url 'pos:report_yearly' %}" class="report-tab {% if request.resolver_match.url_name == 'report_yearly' %}is-active{% endif %}">Yearly Report</a>
+  <a href="{% url 'pos:report_customers' %}" class="report-tab {% if request.resolver_match.url_name == 'report_customers' %}is-active{% endif %}">Customer Report</a>
+  <a href="{% url 'pos:report_inventory' %}" class="report-tab {% if request.resolver_match.url_name == 'report_inventory' %}is-active{% endif %}">Inventory Report</a>
+  <a href="{% url 'pos:report_products' %}" class="report-tab {% if request.resolver_match.url_name == 'report_products' %}is-active{% endif %}">Product Performance</a>
+</nav>

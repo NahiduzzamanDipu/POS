@@ -1,0 +1,69 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page_title|default:"Dashboard" }} | {{ store.business_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128179;</text></svg>">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <a class="sidebar__brand" href="{% url 'pos:dashboard' %}">{{ store.business_name }}</a>
+    <nav class="sidebar__nav">
+      {% for item in nav_items %}
+        <a class="nav-link {% if item.is_active %}is-active{% endif %}"
+           href="{{ item.url }}">{{ item.label }}</a>
+        {% if item.children and item.is_open %}
+          <div class="nav-sub">
+            {% for child in item.children %}
+              <a class="nav-link nav-link--sub {% if child.is_active %}is-active{% endif %}"
+                 href="{{ child.url }}">{{ child.label }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </nav>
+    <div class="sidebar__account">
+      <div class="sidebar__account-name">{{ user.display_name }}</div>
+      <div class="sidebar__account-role">
+        {{ user.role_label }}{% if user.employee_id %} &middot; {{ user.employee_id }}{% endif %}
+      </div>
+      <a class="nav-link nav-link--account {% if request.resolver_match.url_name == 'change_password' %}is-active{% endif %}"
+         href="{% url 'pos:change_password' %}">Change Password</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">{{ page_title|default:"Dashboard" }}</h1>
+      <div class="topbar__spacer"></div>
+      {% block topbar_actions %}{% endblock %}
+      <a class="user-chip" href="{% url 'pos:change_password' %}"
+         title="Change your password">
+        {{ user.display_name }}
+        <small>{{ user.role_label }} &middot; Change password</small>
+      </a>
+      <form method="post" action="{% url 'pos:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger">Logout</button>
+      </form>
+    </header>
+
+    <main class="content">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="alert alert--{{ message.tags|default:'info' }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

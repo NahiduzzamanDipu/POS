@@ -1,0 +1,12 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="pagination">
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    &middot; {{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }}</span>
+  {% if page_obj.has_previous %}
+    <a class="btn btn--ghost btn--sm" href="?page={{ page_obj.previous_page_number }}{{ querystring }}">Previous</a>
+  {% endif %}
+  {% if page_obj.has_next %}
+    <a class="btn btn--ghost btn--sm" href="?page={{ page_obj.next_page_number }}{{ querystring }}">Next</a>
+  {% endif %}
+</div>
+{% endif %}

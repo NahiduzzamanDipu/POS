@@ -1,0 +1,19 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ code }} | {{ store.business_name|default:"O'dell Tech Shopping" }}</title>
+  <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
+</head>
+<body>
+  <main class="error-page">
+    <div>
+      <div class="error-page__code">{{ code }}</div>
+      <h1>{{ title }}</h1>
+      <p>{{ message }}</p>
+      <a class="btn" href="{% url 'pos:dashboard' %}">Back to dashboard</a>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<section class="card" style="max-width:640px">
+  <div class="card__body">
+    <p class="muted small" style="margin-top:0">
+      Every adjustment is recorded against your account and appears in the stock
+      movement history.
+    </p>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}{% include "pos/_field.html" with field=field wide=True %}{% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Apply Adjustment</button>
+        <a class="btn btn--ghost" href="{% url 'pos:inventory' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

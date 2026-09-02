@@ -1,0 +1,66 @@
+{% extends "pos/base.html" %}
+
+{% block topbar_actions %}
+  {% if result.errors %}
+    <a class="btn btn--ghost" href="{% url 'pos:product_import_errors' %}">Download Error Report</a>
+  {% endif %}
+  <a class="btn btn--ghost" href="{% url 'pos:product_import' %}">Import More</a>
+  <a class="btn" href="{% url 'pos:product_list' %}">View Products</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Total Rows</div>
+    <div class="stat__value stat__value--plain">{{ result.total }}</div></div>
+  <div class="stat"><div class="stat__label">Added</div>
+    <div class="stat__value">{{ result.added }}</div></div>
+  <div class="stat"><div class="stat__label">Updated</div>
+    <div class="stat__value stat__value--plain">{{ result.updated }}</div></div>
+  <div class="stat"><div class="stat__label">Skipped</div>
+    <div class="stat__value {% if result.skipped %}stat__value--warn{% else %}stat__value--plain{% endif %}">{{ result.skipped }}</div></div>
+  <div class="stat"><div class="stat__label">Failed</div>
+    <div class="stat__value {% if result.failed %}stat__value--warn{% else %}stat__value--plain{% endif %}">{{ result.failed }}</div></div>
+</div>
+
+<section class="card">
+  <div class="card__head">
+    <h2>Import summary</h2>
+    <div class="topbar__spacer"></div>
+    <span class="badge badge--success">{{ result.stocked }} with opening stock</span>
+  </div>
+  <div class="card__body">
+    <p class="muted" style="margin-top:0">
+      Products were written in a single transaction. Existing products were matched by SKU and
+      updated in place &mdash; nothing was duplicated, and no existing product was deleted.
+      Stock on updated products was left untouched.
+    </p>
+  </div>
+</section>
+
+{% if result.errors %}
+  <section class="card" style="margin-top:24px">
+    <div class="card__head">
+      <h2>Rows that were skipped</h2>
+      <div class="topbar__spacer"></div>
+      <a class="btn btn--ghost btn--sm" href="{% url 'pos:product_import_errors' %}">Download CSV</a>
+    </div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Row</th><th>Product</th><th>SKU</th><th>Problem</th></tr></thead>
+          <tbody>
+            {% for error in result.errors %}
+              <tr>
+                <td class="muted">{{ error.number }}</td>
+                <td>{{ error.name|default:"—" }}</td>
+                <td class="muted nowrap">{{ error.sku|default:"—" }}</td>
+                <td><span class="badge badge--danger">{{ error.message }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

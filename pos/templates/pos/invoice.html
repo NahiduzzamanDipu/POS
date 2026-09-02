@@ -1,0 +1,86 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <button type="button" class="btn btn--ghost no-print" onclick="window.print()">Print</button>
+  {% if 'pos.sell' in capabilities %}
+    <a class="btn no-print" href="{% url 'pos:pos_terminal' %}">New Sale</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="invoice-page">
+  <section class="card invoice">
+    <header class="invoice__head">
+      <div>
+        <div class="invoice__business">{{ store.business_name }}</div>
+        <div class="muted small">
+          {% if store.address %}{{ store.address }}<br>{% endif %}
+          {% if store.phone %}{{ store.phone }}{% endif %}
+          {% if store.email %} &middot; {{ store.email }}{% endif %}
+        </div>
+      </div>
+      <div class="invoice__meta">
+        <div><strong>Invoice {{ sale.invoice_no }}</strong></div>
+        <div>{{ sale.created_at|date:"d M Y, H:i" }}</div>
+        {% if sale.status != 'COMPLETED' %}
+          <div style="margin-top:6px"><span class="badge badge--warn">{{ sale.get_status_display }}</span></div>
+        {% endif %}
+      </div>
+    </header>
+
+    <dl class="invoice__parties">
+      <div><dt>Customer Number</dt><dd>{{ sale.customer_label }}</dd>
+        {% if sale.is_existing_customer_sale %}
+          <dd class="muted small">Existing customer</dd>
+        {% endif %}</div>
+      <div><dt>Cashier</dt><dd>{{ sale.cashier.display_name }}</dd></div>
+      <div><dt>Payment method</dt><dd>{{ sale.get_payment_method_display }}</dd></div>
+    </dl>
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>Product</th><th class="num">Qty</th><th class="num">Unit price</th>
+              <th class="num">Discount</th><th class="num">Amount</th></tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.product_name }}</td>
+              <td class="num">{{ item.quantity }}</td>
+              <td class="num">{{ currency }} {{ item.unit_price|floatformat:2|intcomma }}</td>
+              <td class="num">{% if item.discount_amount %}− {{ currency }} {{ item.discount_amount|floatformat:2 }}
+                {% if item.discount_percent %}<div class="small muted">{{ item.discount_percent|floatformat:"-2" }}%</div>{% endif %}
+                {% else %}—{% endif %}</td>
+              <td class="num">{{ currency }} {{ item.subtotal|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="totals invoice__totals">
+      <div class="totals__row"><span>Subtotal</span><span>{{ currency }} {{ sale.subtotal|floatformat:2|intcomma }}</span></div>
+      {% if sale.product_discount_amount %}
+        <div class="totals__row"><span>Product Discount</span><span>− {{ currency }} {{ sale.product_discount_amount|floatformat:2|intcomma }}</span></div>
+      {% endif %}
+      {% if sale.customer_discount_amount %}
+        <div class="totals__row"><span>Customer Discount ({{ sale.customer_discount_percent|floatformat:"-2" }}%)</span><span>− {{ currency }} {{ sale.customer_discount_amount|floatformat:2|intcomma }}</span></div>
+      {% endif %}
+      {% if not sale.product_discount_amount and not sale.customer_discount_amount and sale.discount_amount %}
+        <div class="totals__row"><span>Discount</span><span>− {{ currency }} {{ sale.discount_amount|floatformat:2|intcomma }}</span></div>
+      {% endif %}
+      <div class="totals__row"><span>Tax ({{ sale.tax_rate|floatformat:"-2" }}%)</span><span>{{ currency }} {{ sale.tax_amount|floatformat:2|intcomma }}</span></div>
+      <div class="totals__row totals__row--grand"><span>Total</span><span>{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</span></div>
+      <div class="totals__row"><span>Paid</span><span>{{ currency }} {{ sale.amount_paid|floatformat:2|intcomma }}</span></div>
+      <div class="totals__row"><span>Change</span><span>{{ currency }} {{ sale.change_due|floatformat:2|intcomma }}</span></div>
+      {% if sale.refunded_amount %}
+        <div class="totals__row"><span>Refunded</span><span>− {{ currency }} {{ sale.refunded_amount|floatformat:2|intcomma }}</span></div>
+      {% endif %}
+    </div>
+
+    <p class="invoice__footer">{{ store.receipt_footer }}</p>
+  </section>
+</div>
+{% endblock %}

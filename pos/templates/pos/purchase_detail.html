@@ -1,0 +1,38 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:purchase_list' %}">All purchases</a>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card__head"><h2>{{ purchase.reference }}</h2></div>
+  <div class="card__body">
+    <div class="form-grid">
+      <div><div class="muted small">Supplier</div><strong>{{ purchase.supplier.name }}</strong></div>
+      <div><div class="muted small">Purchase date</div><strong>{{ purchase.purchase_date|date:"d M Y" }}</strong></div>
+      <div><div class="muted small">Recorded by</div><strong>{{ purchase.created_by.display_name }}</strong></div>
+      <div><div class="muted small">Total</div><strong>{{ currency }} {{ purchase.total_amount|floatformat:2|intcomma }}</strong></div>
+    </div>
+    {% if purchase.note %}<p class="muted" style="margin-bottom:0">{{ purchase.note }}</p>{% endif %}
+  </div>
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Product</th><th class="num">Quantity</th><th class="num">Unit cost</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.product.name }}</td>
+              <td class="num">{{ item.quantity }}</td>
+              <td class="num">{{ currency }} {{ item.unit_cost|floatformat:2|intcomma }}</td>
+              <td class="num">{{ currency }} {{ item.subtotal|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

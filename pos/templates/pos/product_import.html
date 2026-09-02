@@ -1,0 +1,164 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:product_import_template' %}">Download template</a>
+  <a class="btn btn--ghost" href="{% url 'pos:product_list' %}">All products</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="card">
+    <div class="card__head"><h2>Upload a product file</h2></div>
+    <div class="card__body">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <div class="form-grid">
+          {% include "pos/_field.html" with field=form.file wide=True %}
+          {% include "pos/_field.html" with field=form.update_existing %}
+          {% include "pos/_field.html" with field=form.create_missing %}
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn">Validate File</button>
+          <span class="muted small">
+            Nothing is saved until you confirm the preview.
+          </span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  {% if summary %}
+    <div class="stat-grid">
+      <div class="stat"><div class="stat__label">Rows read</div>
+        <div class="stat__value stat__value--plain">{{ summary.total }}</div></div>
+      <div class="stat"><div class="stat__label">Ready to import</div>
+        <div class="stat__value">{{ summary.valid }}</div></div>
+      <div class="stat"><div class="stat__label">New products</div>
+        <div class="stat__value stat__value--plain">{{ summary.new }}</div></div>
+      <div class="stat"><div class="stat__label">Updates</div>
+        <div class="stat__value stat__value--plain">{{ summary.updates }}</div></div>
+      <div class="stat"><div class="stat__label">Warnings</div>
+        <div class="stat__value {% if summary.warnings %}stat__value--warn{% else %}stat__value--plain{% endif %}">{{ summary.warnings }}</div></div>
+      <div class="stat"><div class="stat__label">Rows with errors</div>
+        <div class="stat__value {% if summary.errors %}stat__value--warn{% else %}stat__value--plain{% endif %}">{{ summary.errors }}</div></div>
+    </div>
+
+    <section class="card">
+      <div class="card__head">
+        <h2>Preview</h2>
+        <div class="topbar__spacer"></div>
+        <span class="muted small">Rows with errors are skipped, never guessed at.</span>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Row</th><th>Product</th><th>SKU</th><th>Category</th>
+                  <th>Supplier</th><th class="num">Cost</th><th class="num">Price</th>
+                  <th class="num">Discount</th><th class="num">Sells at</th>
+                  <th class="num">Stock</th><th>Unit</th><th>Result</th></tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr>
+                  <td class="muted">{{ row.number }}</td>
+                  <td>
+                    <div class="product-cell">
+                      {% if row.data.image_url %}
+                        <img class="product-thumb" src="{{ row.data.image_url }}" alt="" loading="lazy">
+                      {% endif %}
+                      <div>
+                        <div>{{ row.name|default:"—" }}</div>
+                        {% if row.data.brand %}<div class="muted small">{{ row.data.brand }}</div>{% endif %}
+                      </div>
+                    </div>
+                  </td>
+                  <td class="muted nowrap">{{ row.sku|default:"—" }}</td>
+                  <td>{{ row.data.category_name|default:"—" }}</td>
+                  <td class="muted">{{ row.data.supplier_name|default:"—" }}</td>
+                  <td class="num muted">{{ row.data.cost_price|default:"—" }}</td>
+                  <td class="num">{{ row.data.selling_price|default:"—" }}</td>
+                  <td class="num">{% if row.data.discount_percent %}<span class="badge badge--success">{{ row.data.discount_percent|floatformat:"-2" }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td class="num"><strong>{{ row.final_price|default:"—" }}</strong></td>
+                  <td class="num">{% if row.action == 'update' %}<span class="muted">unchanged</span>{% else %}{{ row.data.stock_quantity }}{% endif %}</td>
+                  <td class="muted">{{ row.data.unit|default:"—" }}</td>
+                  <td>
+                    {% if not row.is_valid %}
+                      <span class="badge badge--danger">Error</span>
+                      <div class="small muted">{{ row.message }}</div>
+                    {% elif row.action == 'update' %}
+                      <span class="badge badge--info">Update</span>
+                    {% else %}
+                      <span class="badge badge--success">New</span>
+                    {% endif %}
+                    {% if row.has_warning %}
+                      <div><span class="badge badge--warn">Warning</span></div>
+                      <div class="small muted">{{ row.warning_message }}</div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% if summary.valid %}
+        <div class="card__body">
+          <p class="muted small" style="margin-top:0">
+            Opening stock is only applied to <strong>new</strong> products, and is recorded
+            as a stock movement. Existing products keep their current stock — an import
+            changes the catalogue, not the inventory ledger.
+          </p>
+          <form method="post" action="{% url 'pos:product_import_confirm' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--success btn--lg">
+              Import {{ summary.valid }} row{{ summary.valid|pluralize }}
+            </button>
+            {% if summary.errors %}
+              <a class="btn btn--ghost" style="margin-left:10px"
+                 href="{% url 'pos:product_import_errors' %}">Download Error Report</a>
+            {% endif %}
+          </form>
+        </div>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="card">
+      <div class="card__head"><h2>Expected columns</h2></div>
+      <div class="card__body">
+        <p class="muted" style="margin-top:0">
+          The first row must be a header. Column order does not matter and common
+          alternative names (Product, Qty, MRP, Reorder level, Image, Photo …) are
+          recognised automatically, and columns the system does not use — rating,
+          review count, subcategory — are simply ignored. Up to {{ max_rows }} rows
+          per file.
+        </p>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Column</th><th>Required</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>name</code></td><td><span class="badge badge--danger">Required</span></td><td>Product name</td></tr>
+              <tr><td><code>sku</code></td><td><span class="badge">Optional</span></td><td>Unique; a known SKU updates that product. Generated from <code>id</code> or the row number when absent</td></tr>
+              <tr><td><code>category</code></td><td><span class="badge badge--danger">Required</span></td><td>Matched by name</td></tr>
+              <tr><td><code>cost_price</code></td><td><span class="badge">Optional</span></td><td>Purchase price; defaults to 0 when the file has none</td></tr>
+              <tr><td><code>selling_price</code></td><td><span class="badge badge--danger">Required</span></td><td>Must be at or above cost</td></tr>
+              <tr><td><code>discount_percent</code></td><td><span class="badge">Optional</span></td><td>Product-level discount, 0&ndash;100. Also accepts "Discount" or "Offer"</td></tr>
+              <tr><td><code>barcode</code></td><td><span class="badge">Optional</span></td><td>Must be unique if given</td></tr>
+              <tr><td><code>supplier</code></td><td><span class="badge">Optional</span></td><td>Matched by name</td></tr>
+              <tr><td><code>brand</code></td><td><span class="badge">Optional</span></td><td>Free text</td></tr>
+              <tr><td><code>image_url</code></td><td><span class="badge">Optional</span></td><td>http(s) link to the product photo. Also accepts "image", "photo", "thumbnail"</td></tr>
+              <tr><td><code>old_price</code></td><td><span class="badge">Optional</span></td><td>Pre-discount list price. When present it becomes the selling price, so the discount is not applied twice</td></tr>
+              <tr><td><code>stock_quantity</code></td><td><span class="badge">Optional</span></td><td>Opening stock for new products only</td></tr>
+              <tr><td><code>min_stock_level</code></td><td><span class="badge">Optional</span></td><td>Low-stock threshold, defaults to 5</td></tr>
+              <tr><td><code>unit</code></td><td><span class="badge">Optional</span></td><td>pc, kg, g, ltr, pack, box, dzn</td></tr>
+              <tr><td><code>is_active</code></td><td><span class="badge">Optional</span></td><td>yes / no, defaults to yes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

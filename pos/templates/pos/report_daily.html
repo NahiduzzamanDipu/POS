@@ -1,0 +1,85 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="?date={{ day|date:'Y-m-d' }}&export=csv">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+<form class="toolbar" method="get">
+  {% for field in form %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    </div>
+  {% endfor %}
+  <button type="submit" class="btn">Generate Report</button>
+</form>
+
+<h2 class="section-title">{{ day|date:"l, d F Y" }}</h2>
+{% include "pos/_report_totals.html" %}
+
+{% include "pos/_chart.html" %}
+
+<div class="grid-2" style="margin-bottom:24px">
+  <section class="card">
+    <div class="card__head"><h2>Top products</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
+        <tbody>
+          {% for row in top_products %}
+            <tr><td>{{ row.product_name }}</td><td class="num">{{ row.units }}</td>
+                <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td></tr>
+          {% empty %}<tr><td colspan="3"><div class="empty">No sales on this date.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>By cashier</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Cashier</th><th class="num">Transactions</th><th class="num">Revenue</th></tr></thead>
+        <tbody>
+          {% for row in by_cashier %}
+            <tr><td>{{ row.cashier__first_name|default:row.cashier__username }}</td>
+                <td class="num">{{ row.count }}</td>
+                <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td></tr>
+          {% empty %}<tr><td colspan="3"><div class="empty">No sales on this date.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card__head"><h2>Transactions</h2></div>
+  <div class="card__body card__body--flush">
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Invoice</th><th>Time</th><th>Customer Number</th><th>Cashier</th>
+                 <th class="num">Discount</th><th class="num">Total</th><th>Payment</th></tr></thead>
+      <tbody>
+        {% for sale in page_obj %}
+          <tr>
+            <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
+            <td class="nowrap muted">{{ sale.created_at|date:"H:i" }}</td>
+            <td>{{ sale.customer_label }}</td>
+            <td class="muted">{{ sale.cashier.display_name }}</td>
+            <td class="num">{{ currency }} {{ sale.discount_amount|floatformat:2 }}</td>
+            <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+            <td>{{ sale.get_payment_method_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7"><div class="empty"><strong>No sales on this date</strong>Pick another date above.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

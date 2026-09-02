@@ -1,0 +1,73 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="?year={{ year }}&export=csv">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+<form class="toolbar" method="get">
+  {% for field in form %}
+    <div class="field">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    </div>
+  {% endfor %}
+  <button type="submit" class="btn">Generate Report</button>
+</form>
+
+<h2 class="section-title">Year {{ year }}</h2>
+{% include "pos/_report_totals.html" %}
+
+{% include "pos/_chart.html" %}
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card__head"><h2>Month by month</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Month</th><th class="num">Transactions</th><th class="num">Sales</th>
+                   <th class="num">Discount</th><th class="num">Net Sales</th></tr></thead>
+        <tbody>
+          {% for row in months %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td class="num">{{ row.count }}</td>
+              <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+              <td class="num muted">{{ currency }} {{ row.discount|floatformat:2|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.net|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <th class="num">{{ totals.transactions }}</th>
+            <th class="num">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</th>
+            <th class="num">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</th>
+            <th class="num">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</th>
+          </tr>
+        </tfoot>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Best sellers this year</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
+        <tbody>
+          {% for row in best_sellers %}
+            <tr><td>{{ row.product_name }}</td><td class="num">{{ row.units }}</td>
+                <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td></tr>
+          {% empty %}<tr><td colspan="3"><div class="empty">No sales this year.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

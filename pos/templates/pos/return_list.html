@@ -1,0 +1,38 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Returns</div><div class="stat__value stat__value--plain">{{ page_obj.paginator.count }}</div></div>
+  <div class="stat"><div class="stat__label">Total refunded</div><div class="stat__value stat__value--warn">{{ currency }} {{ refund_total|floatformat:2|intcomma }}</div></div>
+</div>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Reference</th><th>Invoice</th><th>Date</th><th>Reason</th><th>Processed by</th><th class="num">Refund</th><th>Restocked</th></tr></thead>
+        <tbody>
+          {% for item in page_obj %}
+            <tr>
+              <td><a href="{% url 'pos:return_detail' item.pk %}">{{ item.reference }}</a></td>
+              <td><a href="{% url 'pos:sale_detail' item.sale.pk %}">{{ item.sale.invoice_no }}</a></td>
+              <td class="nowrap muted">{{ item.created_at|date:"d M Y H:i" }}</td>
+              <td>{{ item.reason|truncatechars:48 }}</td>
+              <td class="muted">{{ item.processed_by.display_name }}</td>
+              <td class="num">{{ currency }} {{ item.refund_amount|floatformat:2|intcomma }}</td>
+              <td>
+                {% if item.restock %}<span class="badge badge--success">Yes</span>
+                {% else %}<span class="badge badge--danger">No</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7"><div class="empty"><strong>No returns recorded</strong>Start a return from any completed transaction.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

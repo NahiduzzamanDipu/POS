@@ -1,0 +1,7 @@
+{% comment %}Product photo with an initials fallback, used wherever a product
+is listed beside its name.{% endcomment %}
+{% if product.image_url %}
+  <img class="product-thumb" src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">
+{% else %}
+  <span class="product-thumb product-thumb--empty" aria-hidden="true">{{ product.initials }}</span>
+{% endif %}

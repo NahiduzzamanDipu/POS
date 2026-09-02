@@ -1,0 +1,51 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Today's sales</div>
+    <div class="stat__value">{{ currency }} {{ today.revenue|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Today's transactions</div>
+    <div class="stat__value stat__value--plain">{{ today.transactions }}</div></div>
+  <div class="stat"><div class="stat__label">This month</div>
+    <div class="stat__value">{{ currency }} {{ month.revenue|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">This year</div>
+    <div class="stat__value">{{ currency }} {{ year.revenue|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Items sold this year</div>
+    <div class="stat__value stat__value--plain">{{ year.items|intcomma }}</div></div>
+</div>
+
+{% include "pos/_chart.html" %}
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card__head"><h2>This month at a glance</h2></div>
+    <div class="card__body card__body--flush">
+      <table class="data"><tbody>
+        <tr><th>Transactions</th><td class="num">{{ month.transactions }}</td></tr>
+        <tr><th>Items sold</th><td class="num">{{ month.items|intcomma }}</td></tr>
+        <tr><th>Product discounts</th><td class="num">{{ currency }} {{ month.product_discount|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Customer discounts</th><td class="num">{{ currency }} {{ month.customer_discount|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Tax collected</th><td class="num">{{ currency }} {{ month.tax|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Net sales</th><td class="num"><strong>{{ currency }} {{ month.net|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>This year at a glance</h2></div>
+    <div class="card__body card__body--flush">
+      <table class="data"><tbody>
+        <tr><th>Transactions</th><td class="num">{{ year.transactions|intcomma }}</td></tr>
+        <tr><th>Items sold</th><td class="num">{{ year.items|intcomma }}</td></tr>
+        <tr><th>Total discounts</th><td class="num">{{ currency }} {{ year.discount|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Tax collected</th><td class="num">{{ currency }} {{ year.tax|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Returns / refunds</th><td class="num">{{ currency }} {{ year.refunded|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Net sales</th><td class="num"><strong>{{ currency }} {{ year.net|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+</div>
+{% endblock %}

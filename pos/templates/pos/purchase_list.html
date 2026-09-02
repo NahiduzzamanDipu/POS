@@ -1,0 +1,38 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn" href="{% url 'pos:purchase_create' %}">Record Purchase</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Purchases</div><div class="stat__value stat__value--plain">{{ page_obj.paginator.count }}</div></div>
+  <div class="stat"><div class="stat__label">Total purchased</div><div class="stat__value">{{ currency }} {{ total_value|floatformat:2|intcomma }}</div></div>
+</div>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Reference</th><th>Supplier</th><th>Date</th><th class="num">Total</th><th>Recorded by</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for purchase in page_obj %}
+            <tr>
+              <td><a href="{% url 'pos:purchase_detail' purchase.pk %}">{{ purchase.reference }}</a></td>
+              <td>{{ purchase.supplier.name }}</td>
+              <td class="nowrap">{{ purchase.purchase_date|date:"d M Y" }}</td>
+              <td class="num">{{ currency }} {{ purchase.total_amount|floatformat:2|intcomma }}</td>
+              <td class="muted">{{ purchase.created_by.display_name }}</td>
+              <td><span class="badge badge--success">{{ purchase.get_status_display }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6"><div class="empty"><strong>No purchases yet</strong>Recording a purchase increases stock automatically.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

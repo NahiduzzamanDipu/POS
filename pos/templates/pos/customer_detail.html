@@ -1,0 +1,54 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Customer Number</div>
+    <div class="stat__value stat__value--plain" style="font-size:21px">{{ customer.phone }}</div></div>
+  <div class="stat"><div class="stat__label">Orders</div>
+    <div class="stat__value stat__value--plain">{{ purchase_count }}</div></div>
+  <div class="stat"><div class="stat__label">Total Shopping</div>
+    <div class="stat__value">{{ currency }} {{ purchase_total|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Total Discount</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ discount_total|floatformat:2|intcomma }}</div></div>
+</div>
+
+<section class="card">
+  <div class="card__head">
+    <h2>Purchase history</h2>
+    <div class="topbar__spacer"></div>
+    {% if purchase_count %}
+      <span class="badge badge--success">Existing customer &mdash; earns the loyalty discount</span>
+    {% else %}
+      <span class="badge">No completed purchases yet</span>
+    {% endif %}
+  </div>
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Invoice</th><th>Date</th><th>Cashier</th>
+                   <th class="num">Discount</th><th class="num">Total</th>
+                   <th>Payment</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for sale in sales %}
+            <tr>
+              <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
+              <td class="nowrap muted">{{ sale.created_at|date:"d M Y H:i" }}</td>
+              <td>{{ sale.cashier.display_name }}</td>
+              <td class="num">{{ currency }} {{ sale.discount_amount|floatformat:2 }}</td>
+              <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+              <td>{{ sale.get_payment_method_display }}</td>
+              <td>
+                {% if sale.status == 'COMPLETED' %}<span class="badge badge--success">Completed</span>
+                {% else %}<span class="badge badge--warn">{{ sale.get_status_display }}</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7"><div class="empty">This customer number has no purchases yet.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

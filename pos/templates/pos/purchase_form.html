@@ -1,0 +1,84 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<section class="card">
+  <div class="card__body">
+    <form method="post" novalidate id="purchase-form">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}{% include "pos/_field.html" with field=field %}{% endfor %}
+      </div>
+
+      <h3 class="section-title" style="margin-top:28px">Items received</h3>
+      <div class="table-wrap">
+        <table class="data" id="lines">
+          <thead>
+            <tr><th style="width:55%">Product</th><th class="num">Quantity</th><th class="num">Unit cost</th><th></th></tr>
+          </thead>
+          <tbody id="lines-body">
+            <tr>
+              <td>
+                <select name="product" class="select">
+                  <option value="">Select a product</option>
+                  {% for product in products %}
+                    <option value="{{ product.pk }}" data-cost="{{ product.cost_price }}">
+                      {{ product.name }} ({{ product.sku }})
+                    </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td><input type="number" name="quantity" class="input" min="1" step="1" value="1"></td>
+              <td><input type="number" name="unit_cost" class="input" min="0" step="0.01" value="0.00"></td>
+              <td class="num"><button type="button" class="btn btn--ghost btn--sm remove-line">Remove</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <button type="button" class="btn btn--ghost btn--sm" id="add-line" style="margin-top:14px">
+        Add another line
+      </button>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">Record Purchase &amp; Update Stock</button>
+        <a class="btn btn--ghost" href="{% url 'pos:purchase_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var body = document.getElementById('lines-body');
+
+  function fillCost(row) {
+    var select = row.querySelector('select[name="product"]');
+    var cost = row.querySelector('input[name="unit_cost"]');
+    select.addEventListener('change', function () {
+      var option = select.options[select.selectedIndex];
+      if (option && option.dataset.cost) { cost.value = option.dataset.cost; }
+    });
+  }
+
+  function bindRemove(row) {
+    row.querySelector('.remove-line').addEventListener('click', function () {
+      if (body.rows.length > 1) { row.remove(); }
+    });
+  }
+
+  Array.prototype.forEach.call(body.rows, function (row) { fillCost(row); bindRemove(row); });
+
+  document.getElementById('add-line').addEventListener('click', function () {
+    var clone = body.rows[0].cloneNode(true);
+    clone.querySelector('select[name="product"]').selectedIndex = 0;
+    clone.querySelector('input[name="quantity"]').value = 1;
+    clone.querySelector('input[name="unit_cost"]').value = '0.00';
+    body.appendChild(clone);
+    fillCost(clone);
+    bindRemove(clone);
+  });
+}());
+</script>
+{% endblock %}

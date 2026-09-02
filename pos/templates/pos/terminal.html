@@ -1,0 +1,125 @@
+{% extends "pos/base.html" %}
+{% load static humanize %}
+
+{% block content %}
+<div class="pos-layout">
+  <div>
+    <div class="pos-search">
+      <input type="search" id="product-search" autocomplete="off" autofocus
+             placeholder="Search product or scan barcode..." value="{{ search_term }}"
+             aria-label="Search products">
+    </div>
+
+    <div class="product-grid" id="product-grid">
+      {% for product in products %}
+        <button type="button" class="product-tile"
+                data-id="{{ product.id }}"
+                data-name="{{ product.name }}"
+                data-price="{{ product.selling_price }}"
+                data-discount="{{ product.discount_percent }}"
+                data-final="{{ product.final_price }}"
+                data-stock="{{ product.stock_quantity }}"
+                data-image="{{ product.image_url }}"
+                {% if product.stock_quantity <= 0 %}disabled{% endif %}>
+          {% if product.image_url %}
+            <img class="product-tile__media" src="{{ product.image_url }}" alt="" loading="lazy">
+          {% else %}
+            <span class="product-tile__media product-tile__media--empty">{{ product.initials }}</span>
+          {% endif %}
+          <span class="product-tile__name">{{ product.name }}</span>
+          <span class="product-tile__price">
+            {{ currency }} {{ product.final_price|floatformat:2 }}
+            {% if product.discount_percent > 0 %}
+              <s class="muted small">{{ currency }} {{ product.selling_price|floatformat:2 }}</s>
+            {% endif %}
+          </span>
+          <span class="product-tile__meta">
+            {% if product.discount_percent > 0 %}
+              <span class="badge badge--success">{{ product.discount_percent|floatformat:"-2" }}% off</span>
+            {% endif %}
+            {% if product.stock_quantity <= 0 %}Out of stock
+            {% else %}{{ product.stock_quantity }} {{ product.get_unit_display|lower }} in stock{% endif %}
+          </span>
+        </button>
+      {% empty %}
+        <p class="muted">No products match that search.</p>
+      {% endfor %}
+    </div>
+    <p class="muted small" id="grid-note" style="margin-top:16px"></p>
+  </div>
+
+  <form class="card cart" method="post" action="{% url 'pos:checkout' %}" id="checkout-form">
+    {% csrf_token %}
+    <input type="hidden" name="cart" id="cart-field">
+    <input type="hidden" name="txn_token" value="{{ txn_token }}">
+    <input type="hidden" name="payment_method" id="payment-method" value="CASH">
+
+    <div class="card__body">
+      <h2 class="cart__title">Shopping Cart</h2>
+
+      <div class="cart__lines" id="cart-lines">
+        <p class="muted small" id="cart-empty">Scan or click a product to start the sale.</p>
+      </div>
+
+      <div class="cart__aux" style="margin-top:18px">
+        <div class="field">
+          <label for="customer-number">Customer Number</label>
+          <input type="tel" name="customer_number" id="customer-number" class="input"
+                 inputmode="numeric" autocomplete="off" maxlength="20"
+                 placeholder="01XXXXXXXXX">
+          <div id="customer-status" class="customer-status" aria-live="polite">
+            <span class="muted small">Optional. Enter the number to check for a returning customer.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="totals">
+        <div class="totals__row"><span>Subtotal</span><span id="t-subtotal">{{ currency }} 0.00</span></div>
+        <div class="totals__row" id="row-product-discount">
+          <span>Product Discount</span><span id="t-product-discount">{{ currency }} 0.00</span>
+        </div>
+        <div class="totals__row" id="row-customer-discount">
+          <span id="t-customer-label">Customer Discount</span>
+          <span id="t-customer-discount">{{ currency }} 0.00</span>
+        </div>
+        <div class="totals__row"><span>Tax ({{ tax_rate|floatformat:"-2" }}%)</span><span id="t-tax">{{ currency }} 0.00</span></div>
+        <div class="totals__row totals__row--grand"><span>Total</span><span id="t-total">{{ currency }} 0.00</span></div>
+      </div>
+
+      <div class="pay-methods" role="group" aria-label="Payment method">
+        {% for value, label in payment_methods %}
+          <button type="button" class="pay-method {% if value == 'CASH' %}is-active{% endif %}"
+                  data-method="{{ value }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+
+      <div class="field" id="cash-block">
+        <label for="amount-paid">Cash received</label>
+        <input type="number" name="amount_paid" id="amount-paid" class="input" min="0" step="0.01"
+               placeholder="0.00">
+        <span class="helptext" id="change-note">Change will be calculated after the total.</span>
+      </div>
+
+      <button type="submit" class="btn btn--success btn--block btn--lg" id="complete-sale" disabled>
+        Complete Sale
+      </button>
+      <button type="button" class="btn btn--ghost btn--block" id="clear-cart" style="margin-top:10px">
+        Clear Cart
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.POS_CONFIG = {
+    lookupUrl: "{% url 'pos:product_lookup' %}",
+    quoteUrl: "{% url 'pos:cart_quote' %}",
+    customerUrl: "{% url 'pos:customer_lookup' %}",
+    currency: "{{ currency|escapejs }}",
+    loyaltyPercent: "{{ loyalty_percent|floatformat:'-2' }}"
+  };
+</script>
+<script src="{% static 'pos/js/terminal.js' %}"></script>
+{% endblock %}

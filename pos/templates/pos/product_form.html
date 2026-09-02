@@ -1,0 +1,49 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<section class="card" style="max-width:900px">
+  <div class="card__body">
+    {% if form.non_field_errors %}
+      <div class="alert alert--error">{{ form.non_field_errors.0 }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "pos/_field.html" with field=form.name %}
+        {% include "pos/_field.html" with field=form.sku %}
+        {% include "pos/_field.html" with field=form.barcode %}
+        {% include "pos/_field.html" with field=form.category %}
+        {% include "pos/_field.html" with field=form.supplier %}
+        {% include "pos/_field.html" with field=form.brand %}
+        {% include "pos/_field.html" with field=form.image_url wide=True %}
+        {% include "pos/_field.html" with field=form.cost_price %}
+        {% include "pos/_field.html" with field=form.selling_price %}
+        {% include "pos/_field.html" with field=form.discount_percent %}
+        {% include "pos/_field.html" with field=form.unit %}
+        {% include "pos/_field.html" with field=form.min_stock_level %}
+        {% include "pos/_field.html" with field=form.is_active %}
+      </div>
+
+      {% if product.image_url %}
+        <div style="margin-top:18px">
+          <div class="muted small">Current image</div>
+          <img class="product-hero" src="{{ product.image_url }}" alt="{{ product.name }}">
+        </div>
+      {% endif %}
+
+      {% if product %}
+        <p class="muted small" style="margin-top:18px">
+          Current stock is {{ product.stock_quantity }} {{ product.get_unit_display|lower }} and is
+          changed through <a href="{% url 'pos:stock_adjust' %}?product={{ product.pk }}">stock adjustments</a>
+          or purchases, never by editing this form.
+        </p>
+      {% endif %}
+
+      <div class="form-actions">
+        <button type="submit" class="btn">Save Product</button>
+        <a class="btn btn--ghost" href="{% url 'pos:product_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
