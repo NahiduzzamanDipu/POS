@@ -1,0 +1,246 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  {% if 'product.manage' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:product_import' %}">&#9889; Bulk Add Products</a>
+    <a class="btn" href="{% url 'pos:product_create' %}">Add Product</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="q">Search</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+           placeholder="Name, SKU, barcode or brand">
+  </div>
+  <div class="field">
+    <label for="category">Category</label>
+    <select id="category" name="category" class="select">
+      <option value="">All categories</option>
+      {% for category in categories %}
+        <option value="{{ category.pk }}" {% if selected_category == category.pk|stringformat:"s" %}selected{% endif %}>{{ category.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All products</option>
+      <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Low stock</option>
+      <option value="out" {% if selected_status == 'out' %}selected{% endif %}>Out of stock</option>
+      {% if archived_count %}
+        <option value="archived" {% if selected_status == 'archived' %}selected{% endif %}>
+          Archived ({{ archived_count }})
+        </option>
+      {% endif %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filter</button>
+</form>
+
+{% if selected_status == 'archived' %}
+  <div class="alert alert--warning">
+    Showing <strong>archived</strong> products. These are retired from the catalogue and
+    cannot be sold &mdash; they are kept only so past invoices and reports stay correct.
+    <a href="{% url 'pos:product_list' %}">Back to the catalogue</a>
+  </div>
+{% endif %}
+
+<form method="post" action="{% url 'pos:product_bulk_action' %}" id="bulk-form">
+  {% csrf_token %}
+  {# Carry the current filter so "all matching" means what is on screen. #}
+  <input type="hidden" name="q" value="{{ search_term }}">
+  <input type="hidden" name="category" value="{{ selected_category }}">
+  <input type="hidden" name="status" value="{{ selected_status }}">
+  <input type="hidden" name="scope" id="bulk-scope" value="selected">
+
+{% if 'product.manage' in capabilities %}
+  <div class="bulk-bar" id="bulk-bar" hidden>
+    <span class="bulk-bar__count" id="bulk-count">0 selected</span>
+    <button type="button" class="btn btn--ghost btn--sm" id="bulk-all">
+      Select all {{ match_count }} matching this filter
+    </button>
+    <button type="button" class="btn btn--ghost btn--sm" id="bulk-clear">Clear</button>
+    <div class="topbar__spacer"></div>
+    <button type="submit" name="action" value="activate" class="btn btn--success btn--sm">
+      Activate
+    </button>
+    <button type="submit" name="action" value="deactivate" class="btn btn--danger btn--sm"
+            id="bulk-deactivate">
+      Deactivate
+    </button>
+  </div>
+{% endif %}
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            {% if 'product.manage' in capabilities %}
+              <th class="bulk-col">
+                <input type="checkbox" id="select-all" aria-label="Select all on this page">
+              </th>
+            {% endif %}
+            <th>Product</th><th>SKU</th><th>Category</th>
+            <th class="num">Price</th><th class="num">Discount</th>
+            <th class="num">Final Price</th><th class="num">Stock</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in page_obj %}
+            <tr>
+              {% if 'product.manage' in capabilities %}
+                <td class="bulk-col">
+                  <input type="checkbox" class="row-select" name="selected"
+                         value="{{ product.pk }}" aria-label="Select {{ product.name }}">
+                </td>
+              {% endif %}
+              <td>
+                <div class="product-cell">
+                  {% include "pos/_product_thumb.html" with product=product %}
+                  <div>
+                    <a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                    {% if product.brand %}<div class="muted small">{{ product.brand }}</div>{% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="nowrap muted">{{ product.sku }}</td>
+              <td>{{ product.category.name }}</td>
+              <td class="num">{{ currency }} {{ product.selling_price|floatformat:2|intcomma }}</td>
+              <td class="num">
+                {% if product.discount_percent > 0 %}
+                  <span class="badge badge--success">{{ product.discount_percent|floatformat:"-2" }}%</span>
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
+              <td class="num"><strong>{{ currency }} {{ product.final_price|floatformat:2|intcomma }}</strong></td>
+              <td class="num">{{ product.stock_quantity }}</td>
+              <td>
+                {% if not product.is_active %}
+                  <span class="badge">Archived</span>
+                {% elif product.stock_status == 'out' %}
+                  <span class="badge badge--danger">Out of Stock</span>
+                {% elif product.stock_status == 'low' %}
+                  <span class="badge badge--warn">Low Stock</span>
+                {% else %}
+                  <span class="badge badge--success">In Stock</span>
+                {% endif %}
+              </td>
+              <td class="num nowrap">
+                {% if 'product.manage' in capabilities %}
+                  <a class="btn btn--ghost btn--sm" href="{% url 'pos:product_update' product.pk %}">Edit</a>
+                  <form method="post" action="{% url 'pos:product_toggle' product.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--ghost btn--sm">
+                      {% if product.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="9">
+              <div class="empty"><strong>No products found</strong>Adjust the filters or add a product.</div>
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  var form   = document.getElementById('bulk-form');
+  var bar    = document.getElementById('bulk-bar');
+  if (!form || !bar) { return; }               // read-only role: nothing to wire
+
+  var all    = document.getElementById('select-all');
+  var rows   = Array.prototype.slice.call(document.querySelectorAll('.row-select'));
+  var count  = document.getElementById('bulk-count');
+  var scope  = document.getElementById('bulk-scope');
+  var allBtn = document.getElementById('bulk-all');
+  var total  = {{ match_count }};
+  var pageCount = rows.length;
+
+  function selected() {
+    return rows.filter(function (r) { return r.checked; }).length;
+  }
+
+  function refresh() {
+    var n = selected();
+    var filtered = scope.value === 'filtered';
+    bar.hidden = n === 0;
+    count.textContent = filtered
+      ? 'All ' + total + ' matching products selected'
+      : n + ' selected';
+    // Offer "select everything matching" only once the page itself is full.
+    allBtn.hidden = filtered || n !== pageCount || total <= pageCount;
+    if (all) {
+      all.checked = n === pageCount && pageCount > 0;
+      all.indeterminate = n > 0 && n < pageCount;
+    }
+  }
+
+  function setScopeSelected() {
+    if (scope.value === 'filtered') { scope.value = 'selected'; }
+  }
+
+  if (all) {
+    all.addEventListener('change', function () {
+      setScopeSelected();
+      rows.forEach(function (r) { r.checked = all.checked; });
+      refresh();
+    });
+  }
+  rows.forEach(function (r) {
+    r.addEventListener('change', function () { setScopeSelected(); refresh(); });
+  });
+
+  allBtn.addEventListener('click', function () {
+    scope.value = 'filtered';
+    rows.forEach(function (r) { r.checked = true; });
+    refresh();
+  });
+
+  document.getElementById('bulk-clear').addEventListener('click', function () {
+    scope.value = 'selected';
+    rows.forEach(function (r) { r.checked = false; });
+    if (all) { all.checked = false; all.indeterminate = false; }
+    refresh();
+  });
+
+  form.addEventListener('submit', function (event) {
+    var action = document.activeElement && document.activeElement.value;
+    var deactivating = action === 'deactivate';
+    var everything = scope.value === 'filtered';
+    var n = everything ? total : selected();
+    if (!n) { event.preventDefault(); return; }
+
+    // Confirm whenever the change hides products, or sweeps a whole filter.
+    // Activating an entire filter is easy to fire by accident and can bring
+    // back rows that were archived on purpose.
+    var message = null;
+    if (deactivating) {
+      message = 'Deactivate ' + n + ' product' + (n === 1 ? '' : 's') + '?\n\n' +
+        'They stay in the database for past invoices, but disappear from the ' +
+        'catalogue, the sales screen and the reports.';
+    } else if (everything) {
+      message = 'Activate all ' + n + ' products matching this filter?\n\n' +
+        'Any that were archived on purpose will return to the catalogue.';
+    }
+    if (message && !window.confirm(message)) { event.preventDefault(); }
+  });
+
+  refresh();
+}());
+</script>
+{% endblock %}

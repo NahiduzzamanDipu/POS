@@ -1,0 +1,25 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<section class="card" style="max-width:900px">
+  <div class="card__head"><h2>Store configuration</h2></div>
+  <div class="card__body">
+    <p class="muted small" style="margin-top:0">
+      These values drive tax on every sale, the invoice header, and the discount that
+      returning customers receive automatically. Cashiers cannot change or override
+      the customer discount at the till.
+    </p>
+    {% if form.non_field_errors %}<div class="alert alert--error">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}{% include "pos/_field.html" with field=field %}{% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Save Settings</button>
+        <a class="btn btn--ghost" href="{% url 'pos:activity_log' %}">View activity log</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

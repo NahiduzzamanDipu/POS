@@ -1,0 +1,78 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  {% if 'return.process' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:return_list' %}">Returns</a>
+  {% endif %}
+  {% if 'pos.sell' in capabilities %}
+    <a class="btn" href="{% url 'pos:pos_terminal' %}">New Sale</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Transactions</div><div class="stat__value stat__value--plain">{{ page_obj.paginator.count|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Total value</div><div class="stat__value">{{ currency }} {{ total_value|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Refunded</div><div class="stat__value stat__value--warn">{{ currency }} {{ refunded_value|floatformat:2|intcomma }}</div></div>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="q">Search</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Invoice number, customer name or phone">
+  </div>
+  <div class="field"><label for="from">From</label><input type="date" id="from" name="from" class="input" value="{{ filters.from }}"></div>
+  <div class="field"><label for="to">To</label><input type="date" id="to" name="to" class="input" value="{{ filters.to }}"></div>
+  <div class="field">
+    <label for="method">Payment</label>
+    <select id="method" name="method" class="select">
+      <option value="">All</option>
+      {% for value, label in method_choices %}
+        <option value="{{ value }}" {% if filters.method == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All</option>
+      {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filter</button>
+</form>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Invoice ID</th><th>Date</th><th>Customer</th><th>Cashier</th><th class="num">Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for sale in page_obj %}
+            <tr>
+              <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
+              <td class="nowrap muted">{{ sale.created_at|date:"d M Y H:i" }}</td>
+              <td>{{ sale.customer_label }}</td>
+              <td class="muted">{{ sale.cashier.display_name }}</td>
+              <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+              <td>{{ sale.get_payment_method_display }}</td>
+              <td>
+                {% if sale.status == 'COMPLETED' %}<span class="badge badge--success">Completed</span>
+                {% elif sale.status == 'VOID' %}<span class="badge badge--danger">Void</span>
+                {% else %}<span class="badge badge--warn">{{ sale.get_status_display }}</span>{% endif %}
+              </td>
+              <td class="num"><a class="btn btn--ghost btn--sm" href="{% url 'pos:invoice' sale.pk %}">Invoice</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8"><div class="empty"><strong>No transactions found</strong>Try widening the date range.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

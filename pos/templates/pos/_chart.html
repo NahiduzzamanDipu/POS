@@ -1,0 +1,49 @@
+{% comment %}Grouped bar chart. Geometry comes from pos/charts.py, so the
+numbers are the database's, not JavaScript's.{% endcomment %}
+{% if chart %}
+<section class="card chart-card">
+  <div class="card__head">
+    <h2>{{ chart.title }}</h2>
+    <div class="topbar__spacer"></div>
+    <div class="chart-legend">
+      {% for item in chart.legend %}
+        <span class="chart-legend__item">
+          <span class="chart-legend__swatch" style="background:{{ item.colour }}"></span>
+          {{ item.label }}
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card__body">
+    <div class="chart-scroll">
+      <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+           role="img" aria-label="{{ chart.title }}" preserveAspectRatio="xMidYMid meet">
+        {% for line in chart.gridlines %}
+          <line x1="{{ chart.axis_x }}" y1="{{ line.y }}"
+                x2="{{ chart.axis_right }}" y2="{{ line.y }}" class="chart__grid"/>
+          <text x="{{ chart.axis_x }}" y="{{ line.y }}" dx="-8" dy="4"
+                class="chart__axis-label" text-anchor="end">{{ line.value|floatformat:"-2" }}</text>
+        {% endfor %}
+
+        {% for group in chart.groups %}
+          {% for bar in group.bars %}
+            <rect x="{{ bar.x }}" y="{{ bar.y }}"
+                  width="{{ bar.width }}" height="{{ bar.height }}"
+                  fill="{{ bar.colour }}" rx="2" class="chart__bar">
+              <title>{{ group.label }} — {{ bar.label }}: {{ bar.value|floatformat:2 }}</title>
+            </rect>
+          {% endfor %}
+          <text x="{{ group.centre }}" y="{{ chart.baseline }}" dy="18"
+                class="chart__label" text-anchor="{% if chart.rotate_labels %}end{% else %}middle{% endif %}"
+                {% if chart.rotate_labels %}transform="rotate(-40 {{ group.centre }} {{ chart.baseline }})"{% endif %}>
+            {{ group.label }}
+          </text>
+        {% endfor %}
+
+        <line x1="{{ chart.axis_x }}" y1="{{ chart.baseline }}"
+              x2="{{ chart.axis_right }}" y2="{{ chart.baseline }}" class="chart__axis"/>
+      </svg>
+    </div>
+  </div>
+</section>
+{% endif %}

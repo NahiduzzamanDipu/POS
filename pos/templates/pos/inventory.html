@@ -1,0 +1,74 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:stock_movements' %}">Movements</a>
+  {% if 'inventory.adjust' in capabilities %}
+    <a class="btn" href="{% url 'pos:stock_adjust' %}">Adjust Stock</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Stock value (cost)</div><div class="stat__value">{{ currency }} {{ stock_value|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Total units</div><div class="stat__value stat__value--plain">{{ total_units|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Low stock</div><div class="stat__value stat__value--warn">{{ low_count }}</div></div>
+  <div class="stat"><div class="stat__label">Out of stock</div><div class="stat__value stat__value--warn">{{ out_count }}</div></div>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="q">Search</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Product, SKU or barcode">
+  </div>
+  <div class="field">
+    <label for="status">Show</label>
+    <select id="status" name="status" class="select">
+      <option value="">All products</option>
+      <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Low stock only</option>
+      <option value="out" {% if selected_status == 'out' %}selected{% endif %}>Out of stock only</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filter</button>
+</form>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Product</th><th>SKU</th><th>Category</th><th class="num">In stock</th><th class="num">Minimum</th><th class="num">Value</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for product in page_obj %}
+            <tr>
+              <td>
+                <div class="product-cell">
+                  {% include "pos/_product_thumb.html" with product=product %}
+                  <a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                </div>
+              </td>
+              <td class="muted nowrap">{{ product.sku }}</td>
+              <td>{{ product.category.name }}</td>
+              <td class="num"><strong>{{ product.stock_quantity }}</strong></td>
+              <td class="num muted">{{ product.min_stock_level }}</td>
+              <td class="num">{{ currency }} {{ product.stock_value|floatformat:2|intcomma }}</td>
+              <td>
+                {% if product.stock_status == 'out' %}<span class="badge badge--danger">Out of Stock</span>
+                {% elif product.stock_status == 'low' %}<span class="badge badge--warn">Low Stock</span>
+                {% else %}<span class="badge badge--success">In Stock</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if 'inventory.adjust' in capabilities %}
+                  <a class="btn btn--ghost btn--sm" href="{% url 'pos:stock_adjust' %}?product={{ product.pk }}">Adjust</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8"><div class="empty"><strong>Nothing to show</strong>No products match this filter.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

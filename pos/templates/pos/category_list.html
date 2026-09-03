@@ -1,0 +1,42 @@
+{% extends "pos/base.html" %}
+
+{% block topbar_actions %}
+  <a class="btn" href="{% url 'pos:category_create' %}">Add Category</a>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Category</th><th>Description</th><th class="num">Products</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for category in page_obj %}
+            <tr>
+              <td><strong>{{ category.name }}</strong></td>
+              <td class="muted">{{ category.description|default:"—"|truncatechars:70 }}</td>
+              <td class="num">{{ category.product_count }}</td>
+              <td>
+                {% if category.is_active %}<span class="badge badge--success">Active</span>
+                {% else %}<span class="badge">Inactive</span>{% endif %}
+              </td>
+              <td class="num nowrap">
+                <a class="btn btn--ghost btn--sm" href="{% url 'pos:category_update' category.pk %}">Edit</a>
+                <form method="post" action="{% url 'pos:category_toggle' category.pk %}" style="display:inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--ghost btn--sm">
+                    {% if category.is_active %}Deactivate{% else %}Activate{% endif %}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5"><div class="empty"><strong>No categories yet</strong>Add one to start grouping products.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

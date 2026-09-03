@@ -1,0 +1,44 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | {{ store.business_name }}</title>
+  <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <div class="login-card__brand">{{ store.business_name }}</div>
+    <p class="login-card__sub">Point of Sale Management System</p>
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert alert--{{ message.tags|default:'info' }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="alert alert--error">{{ form.non_field_errors.0 }}</div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include "pos/_field.html" with field=form.username %}
+      {% include "pos/_field.html" with field=form.password %}
+      {% include "pos/_field.html" with field=form.role %}
+      <button type="submit" class="btn btn--block btn--lg">Login</button>
+    </form>
+
+    {% if store.allow_self_registration %}
+      <p class="login-hint" style="padding-bottom:14px; border-bottom:1px solid var(--border)">
+        New here? <a href="{% url 'pos:register' %}">Create an account</a>
+      </p>
+    {% endif %}
+    <p class="login-hint" style="border-top:0; padding-top:10px">
+      Your role is verified against your account, not the selection above.
+    </p>
+  </main>
+</body>
+</html>

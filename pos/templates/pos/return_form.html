@@ -1,0 +1,59 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<section class="card">
+  <div class="card__head">
+    <h2>Invoice {{ sale.invoice_no }}</h2>
+    <div class="topbar__spacer"></div>
+    <span class="muted">{{ sale.created_at|date:"d M Y H:i" }} &middot; {{ sale.customer_label }}</span>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card__body card__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Product</th><th class="num">Sold</th><th class="num">Already returned</th>
+                <th class="num">Refund per unit</th><th class="num" style="width:150px">Return quantity</th></tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr>
+                <td>{{ item.product_name }}</td>
+                <td class="num">{{ item.quantity }}</td>
+                <td class="num">{{ item.returned_quantity }}</td>
+                <td class="num">{{ currency }} {{ item.unit_refund_value|floatformat:2 }}</td>
+                <td class="num">
+                  {% if item.returnable_quantity %}
+                    <input type="number" class="input" name="quantity_{{ item.pk }}"
+                           min="0" max="{{ item.returnable_quantity }}" step="1" value="0">
+                  {% else %}
+                    <span class="badge">Fully returned</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card__body">
+      <div class="form-grid">
+        {% include "pos/_field.html" with field=form.reason wide=True %}
+        {% include "pos/_field.html" with field=form.restock %}
+      </div>
+      <p class="muted small">
+        The refund includes the tax originally charged on the returned units and can never
+        exceed what remains payable on this invoice.
+      </p>
+      <div class="form-actions">
+        <button type="submit" class="btn">Process Return</button>
+        <a class="btn btn--ghost" href="{% url 'pos:sale_detail' sale.pk %}">Cancel</a>
+      </div>
+    </div>
+  </form>
+</section>
+{% endblock %}

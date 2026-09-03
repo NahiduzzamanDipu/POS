@@ -1,0 +1,73 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:report_customers' %}">Customer Report</a>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Customer numbers</div>
+    <div class="stat__value stat__value--plain">{{ page_obj.paginator.count|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">With purchases</div>
+    <div class="stat__value stat__value--plain">{{ buyer_count|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Total shopping</div>
+    <div class="stat__value">{{ currency }} {{ total_spend|floatformat:2|intcomma }}</div></div>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="q">Customer number</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+           placeholder="01XXXXXXXXX" inputmode="numeric">
+  </div>
+  <div class="field">
+    <label for="buyers">Show</label>
+    <select id="buyers" name="buyers" class="select">
+      <option value="">All numbers</option>
+      <option value="1" {% if only_buyers %}selected{% endif %}>With purchases only</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Search</button>
+</form>
+
+<section class="card">
+  <div class="card__head">
+    <h2>Customer Dashboard</h2>
+    <div class="topbar__spacer"></div>
+    <span class="muted small">Customers appear automatically after a completed sale.</span>
+  </div>
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>Customer Number</th><th class="num">Orders</th>
+              <th class="num">Total Shopping</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for customer in page_obj %}
+            <tr>
+              <td><a href="{% url 'pos:customer_detail' customer.pk %}">{{ customer.phone }}</a></td>
+              <td class="num">{{ customer.purchase_count }}</td>
+              <td class="num">{{ currency }} {{ customer.purchase_total|floatformat:2|intcomma }}</td>
+              <td>
+                {% if customer.purchase_count > 0 %}
+                  <span class="badge badge--success">Existing customer</span>
+                {% else %}
+                  <span class="badge">No purchases yet</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">
+              <div class="empty"><strong>No customers yet</strong>
+                A customer number is recorded automatically when a sale is completed.</div>
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

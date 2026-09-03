@@ -1,0 +1,40 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:sale_detail' sale_return.sale.pk %}">View original sale</a>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card__head"><h2>{{ sale_return.reference }}</h2></div>
+  <div class="card__body">
+    <div class="form-grid">
+      <div><div class="muted small">Original invoice</div>
+        <strong><a href="{% url 'pos:sale_detail' sale_return.sale.pk %}">{{ sale_return.sale.invoice_no }}</a></strong></div>
+      <div><div class="muted small">Processed</div><strong>{{ sale_return.created_at|date:"d M Y, H:i" }}</strong></div>
+      <div><div class="muted small">Processed by</div><strong>{{ sale_return.processed_by.display_name }}</strong></div>
+      <div><div class="muted small">Refund amount</div><strong>{{ currency }} {{ sale_return.refund_amount|floatformat:2|intcomma }}</strong></div>
+      <div><div class="muted small">Restocked</div>
+        <strong>{% if sale_return.restock %}Yes, returned to sellable stock{% else %}No, written off{% endif %}</strong></div>
+    </div>
+    <p style="margin-bottom:0"><span class="muted small">Reason</span><br>{{ sale_return.reason }}</p>
+  </div>
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Product</th><th class="num">Quantity returned</th><th class="num">Refund</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>{{ item.sale_item.product_name }}</td>
+              <td class="num">{{ item.quantity }}</td>
+              <td class="num">{{ currency }} {{ item.refund_amount|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

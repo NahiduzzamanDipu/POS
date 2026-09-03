@@ -1,0 +1,114 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="stat-grid">
+  {% for card in cards %}
+    <div class="stat">
+      <div class="stat__label">{{ card.label }}</div>
+      <div class="stat__value">
+        {% if card.money %}{{ currency }} {{ card.value|floatformat:2|intcomma }}
+        {% else %}{{ card.value|intcomma }}{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="stack">
+  <section class="card">
+    <div class="card__head">
+      <h2>Recent Transactions</h2>
+      <div class="topbar__spacer"></div>
+      <a class="btn btn--ghost btn--sm" href="{% url 'pos:sale_list' %}">View all</a>
+    </div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Invoice ID</th>
+              <th>Customer</th>
+              <th class="num">Amount</th>
+              <th>Payment</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sale in recent_sales %}
+              <tr>
+                <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
+                <td>{{ sale.customer_label }}</td>
+                <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+                <td>{{ sale.get_payment_method_display }}</td>
+                <td>
+                  <span class="badge {% if sale.status == 'COMPLETED' %}badge--success{% elif sale.status == 'VOID' %}badge--danger{% else %}badge--warn{% endif %}">
+                    {{ sale.get_status_display }}
+                  </span>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5">
+                <div class="empty">
+                  <strong>No transactions yet</strong>
+                  Completed sales will appear here.
+                </div>
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    {% if low_stock %}
+      <section class="card">
+        <div class="card__head">
+          <h2>Low Stock Alert</h2>
+          <div class="topbar__spacer"></div>
+          <a class="btn btn--ghost btn--sm" href="{% url 'pos:report_inventory' %}?status=low">Details</a>
+        </div>
+        <div class="card__body card__body--flush">
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Product</th><th>Category</th><th class="num">In stock</th><th class="num">Minimum</th></tr></thead>
+              <tbody>
+                {% for product in low_stock %}
+                  <tr>
+                    <td>{{ product.name }}</td>
+                    <td class="muted">{{ product.category.name }}</td>
+                    <td class="num"><span class="badge badge--warn">{{ product.stock_quantity }}</span></td>
+                    <td class="num muted">{{ product.min_stock_level }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if best_sellers %}
+      <section class="card">
+        <div class="card__head"><h2>Best Selling Products</h2></div>
+        <div class="card__body card__body--flush">
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Product</th><th class="num">Units sold</th><th class="num">Revenue</th></tr></thead>
+              <tbody>
+                {% for row in best_sellers %}
+                  <tr>
+                    <td>{{ row.product_name }}</td>
+                    <td class="num">{{ row.units }}</td>
+                    <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

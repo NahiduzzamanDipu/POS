@@ -1,0 +1,72 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  {% if 'product.manage' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:product_update' product.pk %}">Edit</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <section class="card">
+    <div class="card__head"><h2>Product details</h2></div>
+    {% if product.image_url %}
+      <div class="card__body" style="text-align:center">
+        <img class="product-hero" src="{{ product.image_url }}" alt="{{ product.name }}">
+      </div>
+    {% endif %}
+    <div class="card__body card__body--flush">
+      <table class="data"><tbody>
+        <tr><th>SKU</th><td>{{ product.sku }}</td></tr>
+        <tr><th>Barcode</th><td>{{ product.barcode|default:"—" }}</td></tr>
+        <tr><th>Category</th><td>{{ product.category.name }}</td></tr>
+        <tr><th>Brand</th><td>{{ product.brand|default:"—" }}</td></tr>
+        <tr><th>Image</th><td>
+          {% if product.image_url %}
+            <a href="{{ product.image_url }}" target="_blank" rel="noopener">Open full size</a>
+          {% else %}<span class="muted">No image</span>{% endif %}</td></tr>
+        <tr><th>Supplier</th><td>{{ product.supplier.name|default:"—" }}</td></tr>
+        <tr><th>Cost price</th><td>{{ currency }} {{ product.cost_price|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Selling price</th><td>{{ currency }} {{ product.selling_price|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Product discount</th><td>
+          {% if product.discount_percent > 0 %}
+            <span class="badge badge--success">{{ product.discount_percent|floatformat:"-2" }}%</span>
+            &minus; {{ currency }} {{ product.discount_amount|floatformat:2 }} per unit
+          {% else %}<span class="muted">None</span>{% endif %}</td></tr>
+        <tr><th>Final price</th><td><strong>{{ currency }} {{ product.final_price|floatformat:2|intcomma }}</strong></td></tr>
+        <tr><th>Stock</th><td>{{ product.stock_quantity }} {{ product.get_unit_display|lower }}</td></tr>
+        <tr><th>Minimum level</th><td>{{ product.min_stock_level }}</td></tr>
+        <tr><th>Stock value</th><td>{{ currency }} {{ product.stock_value|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Status</th><td>
+          {% if product.is_active %}<span class="badge badge--success">Active</span>
+          {% else %}<span class="badge">Inactive</span>{% endif %}</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Recent stock movement</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Date</th><th>Reason</th><th class="num">Change</th><th class="num">Balance</th><th>By</th></tr></thead>
+          <tbody>
+            {% for movement in movements %}
+              <tr>
+                <td class="nowrap muted">{{ movement.created_at|date:"d M Y H:i" }}</td>
+                <td>{{ movement.get_reason_display }}</td>
+                <td class="num">{{ movement.quantity_change }}</td>
+                <td class="num">{{ movement.balance_after }}</td>
+                <td class="muted">{{ movement.created_by.display_name|default:"System" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5"><div class="empty">No movement recorded yet.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

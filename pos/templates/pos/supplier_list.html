@@ -1,0 +1,45 @@
+{% extends "pos/base.html" %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:purchase_list' %}">Purchases</a>
+  <a class="btn" href="{% url 'pos:supplier_create' %}">Add Supplier</a>
+{% endblock %}
+
+{% block content %}
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="q">Search</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Supplier name">
+  </div>
+  <button type="submit" class="btn btn--ghost">Search</button>
+</form>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Supplier</th><th>Contact</th><th>Phone</th><th>Email</th><th class="num">Products</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for supplier in page_obj %}
+            <tr>
+              <td><a href="{% url 'pos:supplier_detail' supplier.pk %}">{{ supplier.name }}</a></td>
+              <td>{{ supplier.contact_person|default:"—" }}</td>
+              <td class="nowrap">{{ supplier.phone|default:"—" }}</td>
+              <td class="muted">{{ supplier.email|default:"—" }}</td>
+              <td class="num">{{ supplier.product_count }}</td>
+              <td>
+                {% if supplier.is_active %}<span class="badge badge--success">Active</span>
+                {% else %}<span class="badge">Inactive</span>{% endif %}
+              </td>
+              <td class="num"><a class="btn btn--ghost btn--sm" href="{% url 'pos:supplier_update' supplier.pk %}">Edit</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7"><div class="empty"><strong>No suppliers yet</strong>Add the businesses you buy stock from.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

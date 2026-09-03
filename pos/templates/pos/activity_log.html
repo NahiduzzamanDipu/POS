@@ -1,0 +1,46 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<form class="toolbar" method="get">
+  <div class="field toolbar__grow">
+    <label for="action">Action</label>
+    <input type="search" id="action" name="action" class="input" value="{{ selected_action }}"
+           placeholder="e.g. SALE_COMPLETED">
+  </div>
+  <div class="field">
+    <label for="user">User</label>
+    <select id="user" name="user" class="select">
+      <option value="">All users</option>
+      {% for u in users %}
+        <option value="{{ u.pk }}" {% if selected_user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.display_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filter</button>
+</form>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>When</th><th>User</th><th>Action</th><th>Entity</th><th>Detail</th><th>IP</th></tr></thead>
+        <tbody>
+          {% for entry in page_obj %}
+            <tr>
+              <td class="nowrap muted">{{ entry.created_at|date:"d M Y H:i" }}</td>
+              <td>{{ entry.user.display_name|default:"—" }}</td>
+              <td><span class="badge">{{ entry.action }}</span></td>
+              <td class="muted">{{ entry.entity }}{% if entry.entity_id %} #{{ entry.entity_id }}{% endif %}</td>
+              <td class="muted small">{{ entry.description|default:"—" }}</td>
+              <td class="muted small nowrap">{{ entry.ip_address|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6"><div class="empty">No activity recorded for this filter.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

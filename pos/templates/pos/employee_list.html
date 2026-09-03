@@ -1,0 +1,74 @@
+{% extends "pos/base.html" %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:activity_log' %}">Activity</a>
+  <a class="btn" href="{% url 'pos:employee_create' %}">Add Employee</a>
+{% endblock %}
+
+{% block content %}
+<form class="toolbar" method="get">
+  <div class="field">
+    <label for="role">Role</label>
+    <select id="role" name="role" class="select">
+      <option value="">All roles</option>
+      <option value="ADMIN" {% if selected_role == 'ADMIN' %}selected{% endif %}>Administrator</option>
+      <option value="MANAGER" {% if selected_role == 'MANAGER' %}selected{% endif %}>Manager</option>
+      <option value="CASHIER" {% if selected_role == 'CASHIER' %}selected{% endif %}>Cashier</option>
+      <option value="INVENTORY" {% if selected_role == 'INVENTORY' %}selected{% endif %}>Inventory Staff</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All</option>
+      <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Awaiting approval</option>
+      <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+      <option value="disabled" {% if selected_status == 'disabled' %}selected{% endif %}>Disabled</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filter</button>
+</form>
+
+<section class="card">
+  <div class="card__body card__body--flush">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Employee</th><th>Username</th><th>Employee ID</th><th>Role</th><th>Phone</th><th class="num">Sales</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for employee in page_obj %}
+            <tr>
+              <td><strong>{{ employee.display_name }}</strong>
+                {% if employee.position %}<div class="muted small">{{ employee.position }}</div>{% endif %}
+              </td>
+              <td class="muted">{{ employee.username }}</td>
+              <td class="muted">{{ employee.employee_id|default:"—" }}</td>
+              <td><span class="badge badge--info">{{ employee.get_role_display }}</span></td>
+              <td class="nowrap">{{ employee.phone|default:"—" }}</td>
+              <td class="num">{{ employee.sale_count }}</td>
+              <td>
+                {% if employee.is_active %}<span class="badge badge--success">Active</span>
+                {% elif not employee.last_login %}<span class="badge badge--warn">Awaiting approval</span>
+                {% else %}<span class="badge badge--danger">Disabled</span>{% endif %}
+              </td>
+              <td class="num nowrap">
+                <a class="btn btn--ghost btn--sm" href="{% url 'pos:employee_update' employee.pk %}">Edit</a>
+                {% if employee != user %}
+                  <form method="post" action="{% url 'pos:employee_toggle' employee.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--ghost btn--sm">
+                      {% if employee.is_active %}Disable{% elif not employee.last_login %}Approve{% else %}Enable{% endif %}
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8"><div class="empty">No employees match this filter.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "pos/_pagination.html" %}
+  </div>
+</section>
+{% endblock %}

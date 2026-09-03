@@ -1,0 +1,47 @@
+{% load humanize %}
+<div class="stat-grid">
+  <div class="stat"><div class="stat__label">Total Sales</div>
+    <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Transactions</div>
+    <div class="stat__value stat__value--plain">{{ totals.transactions|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Items Sold</div>
+    <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Total Discount</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</div></div>
+  <div class="stat"><div class="stat__label">Net Sales</div>
+    <div class="stat__value">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</div></div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px">
+  <section class="card">
+    <div class="card__head"><h2>Breakdown</h2></div>
+    <div class="card__body card__body--flush">
+      <table class="data"><tbody>
+        <tr><th>Gross sales (before discount)</th><td class="num">{{ currency }} {{ totals.gross|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Product discounts</th><td class="num">− {{ currency }} {{ totals.product_discount|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Customer discounts</th><td class="num">− {{ currency }} {{ totals.customer_discount|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Tax collected</th><td class="num">{{ currency }} {{ totals.tax|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Total revenue</th><td class="num"><strong>{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</strong></td></tr>
+        <tr><th>Total collected</th><td class="num">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Total due</th><td class="num">{{ currency }} {{ totals.due|floatformat:2|intcomma }}</td></tr>
+        <tr><th>Returns / refunds</th><td class="num">− {{ currency }} {{ totals.refunded|floatformat:2|intcomma }} ({{ returns.count }})</td></tr>
+        <tr><th>Net sales</th><td class="num"><strong>{{ currency }} {{ totals.net|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Payment methods</h2></div>
+    <div class="card__body card__body--flush">
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Method</th><th class="num">Transactions</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          {% for row in by_method %}
+            <tr><td>{{ row.payment_method|title }}</td><td class="num">{{ row.count }}</td>
+                <td class="num">{{ currency }} {{ row.amount|floatformat:2|intcomma }}</td></tr>
+          {% empty %}<tr><td colspan="3"><div class="empty">No sales in this period.</div></td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+</div>

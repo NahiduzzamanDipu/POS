@@ -1,0 +1,124 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:invoice' sale.pk %}">View Invoice</a>
+  {% if can_return and sale.is_returnable %}
+    <a class="btn btn--ghost" href="{% url 'pos:return_create' sale.pk %}">Process Return</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="card">
+    <div class="card__head">
+      <h2>{{ sale.invoice_no }}</h2>
+      <div class="topbar__spacer"></div>
+      {% if sale.status == 'COMPLETED' %}<span class="badge badge--success">Completed</span>
+      {% elif sale.status == 'VOID' %}<span class="badge badge--danger">Void</span>
+      {% else %}<span class="badge badge--warn">{{ sale.get_status_display }}</span>{% endif %}
+    </div>
+    <div class="card__body">
+      <div class="form-grid">
+        <div><div class="muted small">Date &amp; time</div><strong>{{ sale.created_at|date:"d M Y, H:i" }}</strong></div>
+        <div><div class="muted small">Customer Number</div><strong>{{ sale.customer_label }}</strong>
+          {% if sale.is_existing_customer_sale %}<span class="badge badge--success">Existing</span>{% endif %}</div>
+        <div><div class="muted small">Cashier</div><strong>{{ sale.cashier.display_name }}</strong></div>
+        <div><div class="muted small">Payment method</div><strong>{{ sale.get_payment_method_display }}</strong></div>
+      </div>
+    </div>
+
+    <div class="card__body card__body--flush">
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Product</th><th class="num">Qty</th><th class="num">Unit price</th>
+                <th class="num">Discount</th><th class="num">Subtotal</th><th class="num">Returned</th></tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr>
+                <td>{{ item.product_name }}</td>
+                <td class="num">{{ item.quantity }}</td>
+                <td class="num">{{ currency }} {{ item.unit_price|floatformat:2|intcomma }}</td>
+                <td class="num">{{ currency }} {{ item.discount_amount|floatformat:2 }}</td>
+                <td class="num">{{ currency }} {{ item.subtotal|floatformat:2|intcomma }}</td>
+                <td class="num">
+                  {% if item.returned_quantity %}
+                    <span class="badge badge--warn">{{ item.returned_quantity }}</span>
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card__body">
+      <div class="totals" style="margin-left:auto; width:min(340px,100%)">
+        <div class="totals__row"><span>Subtotal</span><span>{{ currency }} {{ sale.subtotal|floatformat:2|intcomma }}</span></div>
+        <div class="totals__row"><span>Product Discount</span><span>− {{ currency }} {{ sale.product_discount_amount|floatformat:2|intcomma }}</span></div>
+        <div class="totals__row"><span>Customer Discount{% if sale.customer_discount_percent %} ({{ sale.customer_discount_percent|floatformat:"-2" }}%){% endif %}</span><span>− {{ currency }} {{ sale.customer_discount_amount|floatformat:2|intcomma }}</span></div>
+        <div class="totals__row"><span>Tax ({{ sale.tax_rate|floatformat:"-2" }}%)</span><span>{{ currency }} {{ sale.tax_amount|floatformat:2|intcomma }}</span></div>
+        <div class="totals__row totals__row--grand"><span>Total</span><span>{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</span></div>
+        <div class="totals__row muted"><span>Paid</span><span>{{ currency }} {{ sale.amount_paid|floatformat:2|intcomma }}</span></div>
+        {% if sale.change_due %}
+          <div class="totals__row muted"><span>Change</span><span>{{ currency }} {{ sale.change_due|floatformat:2|intcomma }}</span></div>
+        {% endif %}
+        {% if sale.refunded_amount %}
+          <div class="totals__row" style="color:var(--amber)"><span>Refunded</span><span>− {{ currency }} {{ sale.refunded_amount|floatformat:2|intcomma }}</span></div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if returns %}
+    <section class="card">
+      <div class="card__head"><h2>Returns against this sale</h2></div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Reference</th><th>Date</th><th>Reason</th><th>Processed by</th><th class="num">Refund</th></tr></thead>
+            <tbody>
+              {% for item in returns %}
+                <tr>
+                  <td><a href="{% url 'pos:return_detail' item.pk %}">{{ item.reference }}</a></td>
+                  <td class="nowrap muted">{{ item.created_at|date:"d M Y H:i" }}</td>
+                  <td>{{ item.reason }}</td>
+                  <td class="muted">{{ item.processed_by.display_name }}</td>
+                  <td class="num">{{ currency }} {{ item.refund_amount|floatformat:2|intcomma }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if can_void and sale.status == 'COMPLETED' and not returns %}
+    <section class="card">
+      <div class="card__head"><h2>Void this sale</h2></div>
+      <div class="card__body">
+        <p class="muted" style="margin-top:0">
+          Voiding keeps the record for audit (BRL-6) and returns every item to stock.
+          Use a return instead if the customer is only bringing back part of the order.
+        </p>
+        <form method="post" action="{% url 'pos:sale_void' sale.pk %}"
+              onsubmit="return confirm('Void {{ sale.invoice_no }} and restore all stock?');">
+          {% csrf_token %}
+          <div class="field field--wide">
+            <label for="reason">Reason</label>
+            <input type="text" id="reason" name="reason" class="input" maxlength="200" required
+                   placeholder="Why is this sale being voided?">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--danger">Void Sale</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock %}
