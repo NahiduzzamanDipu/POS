@@ -23,7 +23,7 @@ SECRET_KEY = os.getenv(
 
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1, pos.odelltech.com').split(',') if h.strip()]
 
 
 INSTALLED_APPS = [
@@ -82,14 +82,15 @@ DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite').strip().lower()
 if DB_ENGINE in {'sqlite', 'sqlite3'}:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'odelltec_pos_db',
-            'USER': 'odelltec_rasel',
-            'PASSWORD': 'rasel@5437',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / os.getenv('SQLITE_NAME', 'db.sqlite3'),
             'OPTIONS': {
-                'charset': 'utf8mb4'
+                # The busy timeout stops "database is locked" under light
+                # concurrency. WAL and synchronous=NORMAL are applied per
+                # connection in pos.apps -- Django 4.0's SQLite backend has no
+                # 'init_command' option, so the PRAGMAs go through the
+                # connection_created signal instead.
+                'timeout': 20,
             },
         }
     }
@@ -106,9 +107,9 @@ elif DB_ENGINE in {'mysql', 'mariadb'}:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': DB_NAME,
-            'USER': os.getenv('DB_USER', 'root'),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'NAME': 'odelltec_pos_db',
+            'USER': os.getenv('DB_USER', 'odelltec_rasel'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'rasel@5437'),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
             'PORT': os.getenv('DB_PORT', '3306'),
             # MySQL can only resolve named time zones (needed by every ``__date``
