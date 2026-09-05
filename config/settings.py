@@ -83,9 +83,9 @@ if DB_ENGINE in {'sqlite', 'sqlite3'}:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'pos_db',
-            'USER': 'root',
-            'PASSWORD': '',
+            'NAME': 'odelltec_pos_db',
+            'USER': 'odelltec_rasel',
+            'PASSWORD': 'rasel@5437',
             'HOST': '127.0.0.1',
             'PORT': '3306',
             'OPTIONS': {
