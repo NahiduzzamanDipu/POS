@@ -82,15 +82,14 @@ DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite').strip().lower()
 if DB_ENGINE in {'sqlite', 'sqlite3'}:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / os.getenv('SQLITE_NAME', 'db.sqlite3'),
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'pos_db',
+            'USER': 'root',
+            'PASSWORD': '',
+            'HOST': '127.0.0.1',
+            'PORT': '3306',
             'OPTIONS': {
-                # The busy timeout stops "database is locked" under light
-                # concurrency. WAL and synchronous=NORMAL are applied per
-                # connection in pos.apps -- Django 4.0's SQLite backend has no
-                # 'init_command' option, so the PRAGMAs go through the
-                # connection_created signal instead.
-                'timeout': 20,
+                'charset': 'utf8mb4'
             },
         }
     }
