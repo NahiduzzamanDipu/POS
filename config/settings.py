@@ -68,70 +68,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database
-# ---------------------------------------------------------------------------
-# DB_ENGINE picks the backend:
-#   sqlite  -- zero setup, no server needed. Good for a fresh clone, a laptop
-#              demo, or anyone you send the project to.
-#   mysql   -- the production/shared setup, needs MySQL 8.0.11+ running.
-#
-# Default is sqlite so `python manage.py runserver` works on a machine with
-# nothing installed. This project's own .env sets DB_ENGINE=mysql explicitly.
-DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite').strip().lower()
-
-if DB_ENGINE in {'sqlite', 'sqlite3'}:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'pos_db',
-            'USER': 'root',
-            'PASSWORD': '',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
-            'OPTIONS': {
-                'charset': 'utf8mb4'
-            },
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'pos_db'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'TIME_ZONE': os.getenv('DJANGO_TIME_ZONE', 'Asia/Dhaka'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'sql_mode': 'STRICT_TRANS_TABLES',
+        },
+        'TEST': {
+            'CHARSET': 'utf8mb4',
+            'COLLATION': 'utf8mb4_unicode_ci',
+        },
     }
-elif DB_ENGINE in {'mysql', 'mariadb'}:
-    DB_NAME = os.getenv('DB_NAME', 'pos_system')
+}
 
-    # Guard rail: the MySQL system schema must never hold application tables.
-    if DB_NAME.strip().lower() in {'mysql', 'information_schema', 'performance_schema', 'sys'}:
-        raise ImproperlyConfigured(
-            f"DB_NAME is set to the MySQL system schema '{DB_NAME}'. "
-            "Point DB_NAME at the application database (pos_system) instead."
-        )
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': DB_NAME,
-            'USER': os.getenv('DB_USER', 'root'),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
-            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-            'PORT': os.getenv('DB_PORT', '3306'),
-            # MySQL can only resolve named time zones (needed by every ``__date``
-            # lookup) once its mysql.time_zone tables are loaded. Matching the
-            # connection time zone to TIME_ZONE removes the CONVERT_TZ call
-            # entirely, so date filtering works on a stock server. See README.
-            'TIME_ZONE': os.getenv('DJANGO_TIME_ZONE', 'Asia/Dhaka'),
-            'OPTIONS': {
-                'charset': 'utf8mb4',
-                # STRICT_TRANS_TABLES makes MySQL reject truncating/invalid writes
-                # instead of silently coercing them.
-                'sql_mode': 'STRICT_TRANS_TABLES',
-            },
-            'TEST': {
-                'CHARSET': 'utf8mb4',
-                'COLLATION': 'utf8mb4_unicode_ci',
-            },
-        }
-    }
-else:
-    raise ImproperlyConfigured(
-        f"DB_ENGINE must be 'sqlite' or 'mysql', not '{DB_ENGINE}'."
-    )
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
