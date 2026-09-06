@@ -1,5 +1,10 @@
-{% comment %}Grouped bar chart. Geometry comes from pos/charts.py, so the
-numbers are the database's, not JavaScript's.{% endcomment %}
+{% comment %}
+Line / area chart. Pass the chart dict built by charts.build_line_chart:
+
+    {% include "pos/_line_chart.html" with chart=trend_chart %}
+
+Renders nothing when the builder returned None (no data worth plotting).
+{% endcomment %}
 {% if chart %}
 <section class="card">
   <div class="card__head">
@@ -25,19 +30,22 @@ numbers are the database's, not JavaScript's.{% endcomment %}
                 class="chart__axis-label" text-anchor="end">{{ line.value|floatformat:"-2" }}</text>
         {% endfor %}
 
-        {% for group in chart.groups %}
-          {% for bar in group.bars %}
-            <rect x="{{ bar.x }}" y="{{ bar.y }}"
-                  width="{{ bar.width }}" height="{{ bar.height }}"
-                  fill="{{ bar.colour }}" rx="3" class="chart__bar">
-              <title>{{ group.label }} &mdash; {{ bar.label }}: {{ bar.value|floatformat:2 }}</title>
-            </rect>
+        {% for series in chart.lines %}
+          {% if series.fill %}
+            <path d="{{ series.area }}" fill="{{ series.colour }}" class="chart__area"/>
+          {% endif %}
+          <path d="{{ series.path }}" stroke="{{ series.colour }}" class="chart__line"/>
+          {% for point in series.points %}
+            <circle cx="{{ point.x }}" cy="{{ point.y }}" r="3.5"
+                    fill="{{ series.colour }}" class="chart__dot">
+              <title>{{ point.label }} &mdash; {{ series.label }}: {{ point.value|floatformat:2 }}</title>
+            </circle>
           {% endfor %}
-          <text x="{{ group.centre }}" y="{{ chart.baseline }}" dy="18"
-                class="chart__label" text-anchor="{% if chart.rotate_labels %}end{% else %}middle{% endif %}"
-                {% if chart.rotate_labels %}transform="rotate(-40 {{ group.centre }} {{ chart.baseline }})"{% endif %}>
-            {{ group.label }}
-          </text>
+        {% endfor %}
+
+        {% for tick in chart.ticks %}
+          <text x="{{ tick.x }}" y="{{ chart.baseline }}" dy="17"
+                class="chart__label" text-anchor="middle">{{ tick.label }}</text>
         {% endfor %}
 
         <line x1="{{ chart.axis_x }}" y1="{{ chart.baseline }}"

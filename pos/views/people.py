@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from ..forms import CustomerForm, EmployeeForm
 from ..customers import number_variants
-from ..models import Customer, Sale, User
+from ..models import Customer, Role, Sale, User
 from ..permissions import (
     CUSTOMER_MANAGE,
     CUSTOMER_VIEW,
@@ -158,9 +158,29 @@ def customer_update(request, pk):
 # --------------------------------------------------------------- employees
 @require(EMPLOYEE_MANAGE)
 def employee_list(request):
-    employees = User.objects.annotate(sale_count=Count('sales')).order_by(
-        'first_name', 'username'
+    employees = (
+        User.objects.annotate(
+            sale_count=Count('sales', filter=~Q(sales__status=Sale.Status.VOID)),
+            sale_total=Coalesce(
+                Sum('sales__total_amount', filter=~Q(sales__status=Sale.Status.VOID)),
+                Value(ZERO, output_field=DecimalField(max_digits=14, decimal_places=2)),
+            ),
+        )
+        .order_by('employee_id', 'first_name')
     )
+
+    # Searchable by the things the table actually shows -- never by username.
+    term = request.GET.get('q', '').strip()
+    if term:
+        employees = employees.filter(
+            Q(employee_id__icontains=term)
+            | Q(first_name__icontains=term)
+            | Q(last_name__icontains=term)
+            | Q(email__icontains=term)
+            | Q(phone__icontains=term)
+            | Q(position__icontains=term)
+        )
+
     role = request.GET.get('role', '')
     status = request.GET.get('status', '')
     if role:
@@ -179,8 +199,12 @@ def employee_list(request):
         {
             'page_title': 'Employees',
             'page_obj': paginate(request, employees),
+            'match_count': employees.count(),
+            'search_term': term,
+            'roles': Role.choices,
             'selected_role': role,
             'selected_status': status,
+            'active_count': User.objects.filter(is_active=True).count(),
             'pending_count': User.objects.filter(
                 is_active=False, last_login__isnull=True
             ).count(),

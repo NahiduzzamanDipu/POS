@@ -1,0 +1,9 @@
+{% comment %}
+One icon from the sprite in pos/_icons.html.
+
+    {% include "pos/_icon.html" with name="edit" %}
+    {% include "pos/_icon.html" with name="plus" cls="icon--sm" %}
+
+`name` is the symbol id without its `i-` prefix; pass `id` instead when the
+value already carries it (the navigation stores whole ids).
+{% endcomment %}<svg class="icon {{ cls }}" aria-hidden="true" focusable="false"><use href="#{% if id %}{{ id }}{% else %}i-{{ name }}{% endif %}"></use></svg>

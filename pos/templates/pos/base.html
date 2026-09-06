@@ -3,18 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f2137">
   <title>{% block title %}{{ page_title|default:"Dashboard" }} | {{ store.business_name }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#128179;</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23f56a1c'/><text x='16' y='23' font-size='18' font-family='Segoe UI,sans-serif' font-weight='700' fill='white' text-anchor='middle'>O</text></svg>">
 </head>
 <body>
+{% include "pos/_icons.html" %}
+
 <div class="app">
-  <aside class="sidebar">
-    <a class="sidebar__brand" href="{% url 'pos:dashboard' %}">{{ store.business_name }}</a>
-    <nav class="sidebar__nav">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__brand">
+      <a class="sidebar__brand-link" href="{% url 'pos:dashboard' %}">
+        <span class="sidebar__mark" aria-hidden="true">O</span>
+        <span class="sidebar__brand-text">
+          <b>{{ store.business_name }}</b>
+          <span>Point of Sale</span>
+        </span>
+      </a>
+      <button type="button" class="sidebar__close" id="sidebar-close" aria-label="Close menu">
+        {% include "pos/_icon.html" with name="x" %}
+      </button>
+    </div>
+
+    <nav class="sidebar__nav" aria-label="Main navigation">
       {% for item in nav_items %}
-        <a class="nav-link {% if item.is_active %}is-active{% endif %}"
-           href="{{ item.url }}">{{ item.label }}</a>
+        {% ifchanged item.group %}
+          <div class="nav-group"><div class="nav-group__label">{{ item.group }}</div></div>
+        {% endifchanged %}
+
+        <a class="nav-link {% if item.is_active %}is-active{% endif %} {% if item.is_open %}is-open{% endif %}"
+           href="{{ item.url }}"{% if item.is_active %} aria-current="page"{% endif %}>
+          {% include "pos/_icon.html" with id=item.icon %}
+          <span>{{ item.label }}</span>
+          {% if item.children %}
+            <span class="nav-link__caret">{% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}</span>
+          {% endif %}
+        </a>
+
         {% if item.children and item.is_open %}
           <div class="nav-sub">
             {% for child in item.children %}
@@ -25,37 +51,113 @@
         {% endif %}
       {% endfor %}
     </nav>
-    <div class="sidebar__account">
-      <div class="sidebar__account-name">{{ user.display_name }}</div>
-      <div class="sidebar__account-role">
-        {{ user.role_label }}{% if user.employee_id %} &middot; {{ user.employee_id }}{% endif %}
-      </div>
-      <a class="nav-link nav-link--account {% if request.resolver_match.url_name == 'change_password' %}is-active{% endif %}"
-         href="{% url 'pos:change_password' %}">Change Password</a>
+
+    <div class="sidebar__foot">
+      {{ user.role_label }}{% if user.employee_id %} &middot; {{ user.employee_id }}{% endif %}
     </div>
   </aside>
 
-  <div class="main">
+  <div class="scrim" id="scrim"></div>
+
+  <div class="app__main">
     <header class="topbar">
-      <h1 class="topbar__title">{{ page_title|default:"Dashboard" }}</h1>
-      <div class="topbar__spacer"></div>
-      {% block topbar_actions %}{% endblock %}
-      <a class="user-chip" href="{% url 'pos:change_password' %}"
-         title="Change your password">
-        {{ user.display_name }}
-        <small>{{ user.role_label }} &middot; Change password</small>
-      </a>
-      <form method="post" action="{% url 'pos:logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn--danger">Logout</button>
-      </form>
+      <button type="button" class="icon-btn topbar__toggle" id="sidebar-toggle"
+              aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        {% include "pos/_icon.html" with name="menu" %}
+      </button>
+
+      {% if 'product.view' in capabilities %}
+        <form class="topbar__search" method="get" action="{% url 'pos:product_list' %}" role="search">
+          {% include "pos/_icon.html" with name="search" %}
+          <input type="search" name="q" placeholder="Search products by name, SKU or barcode"
+                 aria-label="Search products">
+        </form>
+      {% endif %}
+
+      <div class="spacer"></div>
+
+      {% if 'pos.sell' in capabilities %}
+        <a class="btn btn--sm no-print" href="{% url 'pos:pos_terminal' %}">
+          {% include "pos/_icon.html" with name="plus" %} New Sale
+        </a>
+      {% endif %}
+
+      <div class="dropdown" data-dropdown>
+        <button type="button" class="user-chip" data-dropdown-toggle
+                aria-haspopup="true" aria-expanded="false">
+          <span class="user-chip__avatar">{{ user.display_name|slice:":1"|upper }}</span>
+          <span class="user-chip__text">
+            <span class="user-chip__name">{{ user.display_name }}</span>
+            <span class="user-chip__role">{{ user.role_label }}</span>
+          </span>
+          {% include "pos/_icon.html" with name="chevron-down" cls="icon--sm" %}
+        </button>
+
+        <div class="dropdown__menu" data-dropdown-menu hidden>
+          <div class="dropdown__header">
+            <div class="dropdown__name">{{ user.display_name }}</div>
+            <div class="dropdown__meta">
+              {{ user.role_label }}{% if user.employee_id %} &middot; {{ user.employee_id }}{% endif %}
+            </div>
+            {% if user.email %}<div class="dropdown__meta">{{ user.email }}</div>{% endif %}
+          </div>
+          <a class="dropdown__item" href="{% url 'pos:change_password' %}">
+            {% include "pos/_icon.html" with name="key" %} Change password
+          </a>
+          {% if 'settings.manage' in capabilities %}
+            <a class="dropdown__item" href="{% url 'pos:settings' %}">
+              {% include "pos/_icon.html" with name="settings" %} Store settings
+            </a>
+          {% endif %}
+          {% if 'activity.view' in capabilities %}
+            <a class="dropdown__item" href="{% url 'pos:activity_log' %}">
+              {% include "pos/_icon.html" with name="activity" %} Activity log
+            </a>
+          {% endif %}
+          <div class="dropdown__sep"></div>
+          <form method="post" action="{% url 'pos:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="dropdown__item dropdown__item--danger">
+              {% include "pos/_icon.html" with name="logout" %} Sign out
+            </button>
+          </form>
+        </div>
+      </div>
     </header>
 
     <main class="content">
+      <div class="page-head">
+        <div class="page-head__text">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="{% url 'pos:dashboard' %}">Home</a>
+            {% block breadcrumbs %}
+              {% if page_title != "Dashboard" %}
+                {% include "pos/_icon.html" with name="chevron-right" %}
+                <span>{{ page_title }}</span>
+              {% endif %}
+            {% endblock %}
+          </nav>
+          <h1 class="topbar__title">{{ page_title|default:"Dashboard" }}</h1>
+          {% block page_subtitle %}{% endblock %}
+        </div>
+        <div class="page-head__actions no-print">{% block page_actions %}{% endblock %}</div>
+      </div>
+
       {% if messages %}
-        <div class="messages">
+        <div class="toasts" id="toasts">
           {% for message in messages %}
-            <div class="alert alert--{{ message.tags|default:'info' }}">{{ message }}</div>
+            <div class="toast toast--{{ message.tags|default:'info' }}" data-toast>
+              <span class="toast__icon">
+                {% if message.tags == 'success' %}{% include "pos/_icon.html" with name="check-circle" %}
+                {% elif message.tags == 'error' %}{% include "pos/_icon.html" with name="alert-circle" %}
+                {% elif message.tags == 'warning' %}{% include "pos/_icon.html" with name="alert-triangle" %}
+                {% else %}{% include "pos/_icon.html" with name="info" %}{% endif %}
+              </span>
+              <div class="toast__body">{{ message }}</div>
+              <button type="button" class="toast__close" data-toast-close aria-label="Dismiss">
+                {% include "pos/_icon.html" with name="x" cls="icon--sm" %}
+              </button>
+            </div>
           {% endfor %}
         </div>
       {% endif %}
@@ -64,6 +166,8 @@
     </main>
   </div>
 </div>
+
+<script src="{% static 'pos/js/app.js' %}?v={{ asset_version }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

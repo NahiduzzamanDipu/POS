@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db import IntegrityError
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -222,11 +222,37 @@ def product_toggle(request, pk):
 # -------------------------------------------------------------- categories
 @require(CATEGORY_MANAGE)
 def category_list(request):
-    categories = Category.objects.annotate(product_count=Count('products'))
+    categories = (
+        Category.objects.annotate(
+            product_count=Count('products', filter=Q(products__is_active=True))
+        )
+        .order_by('name')            # ordered so pagination is stable
+    )
+
+    term = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    if term:
+        categories = categories.filter(
+            Q(name__icontains=term) | Q(description__icontains=term)
+        )
+    if status == 'active':
+        categories = categories.filter(is_active=True)
+    elif status == 'inactive':
+        categories = categories.filter(is_active=False)
+
     return render(
         request,
         'pos/category_list.html',
-        {'page_title': 'Categories', 'page_obj': paginate(request, categories)},
+        {
+            'page_title': 'Categories',
+            'page_obj': paginate(request, categories),
+            'match_count': categories.count(),
+            'search_term': term,
+            'selected_status': status,
+            'active_count': Category.objects.filter(is_active=True).count(),
+            'product_count': Product.objects.active().count(),
+            'querystring': query_string(request),
+        },
     )
 
 
@@ -286,17 +312,35 @@ def category_toggle(request, pk):
 # --------------------------------------------------------------- suppliers
 @require(SUPPLIER_MANAGE)
 def supplier_list(request):
-    suppliers = Supplier.objects.annotate(product_count=Count('products'))
+    suppliers = (
+        Supplier.objects.annotate(
+            product_count=Count('products', filter=Q(products__is_active=True))
+        )
+        .order_by('name')            # ordered so pagination is stable
+    )
     term = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
     if term:
-        suppliers = suppliers.filter(name__icontains=term)
+        suppliers = suppliers.filter(
+            Q(name__icontains=term)
+            | Q(contact_person__icontains=term)
+            | Q(phone__icontains=term)
+            | Q(email__icontains=term)
+        )
+    if status == 'active':
+        suppliers = suppliers.filter(is_active=True)
+    elif status == 'inactive':
+        suppliers = suppliers.filter(is_active=False)
     return render(
         request,
         'pos/supplier_list.html',
         {
             'page_title': 'Suppliers',
             'page_obj': paginate(request, suppliers),
+            'match_count': suppliers.count(),
             'search_term': term,
+            'selected_status': status,
+            'active_count': Supplier.objects.filter(is_active=True).count(),
             'querystring': query_string(request),
         },
     )

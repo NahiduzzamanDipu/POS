@@ -321,6 +321,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='product',
-            constraint=models.CheckConstraint(condition=models.Q(('selling_price__gte', 0), ('cost_price__gte', 0)), name='product_prices_non_negative'),
+            constraint=models.CheckConstraint(check=models.Q(('selling_price__gte', 0), ('cost_price__gte', 0)), name='product_prices_non_negative'),
         ),
     ]

@@ -15,7 +15,20 @@ Set-Location $PSScriptRoot
 $python = Join-Path $PSScriptRoot 'venv\Scripts\python.exe'
 if (-not (Test-Path $python)) {
     Write-Host "Virtual environment missing. Run:" -ForegroundColor Yellow
-    Write-Host "  python -m venv venv"
+    Write-Host "  py -3.9 -m venv venv"
+    Write-Host "  venv\Scripts\activate"
+    Write-Host "  pip install -r requirements.txt"
+    exit 1
+}
+
+# Django 4.0.3 supports Python 3.8-3.10 only. A venv built on a newer
+# interpreter fails in confusing ways, so say so up front.
+$pyVersion = (& $python -c "import sys; print('%d.%d' % sys.version_info[:2])")
+if ($pyVersion -ne '3.9') {
+    Write-Host "This project targets Python 3.9.2 (this venv is $pyVersion)." -ForegroundColor Yellow
+    Write-Host "Rebuild it:" -ForegroundColor Yellow
+    Write-Host "  Remove-Item -Recurse -Force venv"
+    Write-Host "  py -3.9 -m venv venv"
     Write-Host "  venv\Scripts\activate"
     Write-Host "  pip install -r requirements.txt"
     exit 1

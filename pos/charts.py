@@ -11,7 +11,7 @@ from decimal import Decimal
 ZERO = Decimal('0.00')
 
 # Series colours, matching the palette already used across the interface.
-SERIES_COLOURS = ['#2563eb', '#16a34a', '#b45309', '#7c3aed']
+SERIES_COLOURS = ['#f56a1c', '#2563eb', '#15a05a', '#7c3aed', '#c2760b', '#0891b2']
 
 CHART_WIDTH = 960
 CHART_HEIGHT = 300
@@ -112,3 +112,151 @@ def build_grouped_chart(rows, *, label_key, series, title='', empty_message=None
 def shorten(text, limit=18):
     text = str(text)
     return text if len(text) <= limit else text[: limit - 1] + '…'
+
+
+# ---------------------------------------------------------------------------
+# Trend and share charts
+#
+# Same contract as build_grouped_chart: geometry is computed here from real
+# query results and drawn as inline SVG by the templates. No chart library and
+# no CDN, so the dashboard still renders when the shop's internet is down.
+# ---------------------------------------------------------------------------
+LINE_HEIGHT = 260
+LINE_PADDING_BOTTOM = 40
+
+
+def build_line_chart(rows, *, label_key, series, title=''):
+    """Line/area chart. ``series`` is ``[(key, label), ...]``, one line each.
+
+    Returns ``None`` when there is nothing to plot, so a template can simply
+    leave the panel out rather than draw an empty box.
+    """
+    rows = [dict(row) for row in rows]
+    if len(rows) < 2:
+        return None
+
+    values = [float(row.get(key) or 0) for row in rows for key, _label in series]
+    if not any(values):
+        return None
+
+    top = _nice_ceiling(max(values))
+    plot_width = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT
+    plot_height = LINE_HEIGHT - PADDING_TOP - LINE_PADDING_BOTTOM
+    baseline = PADDING_TOP + plot_height
+    step = plot_width / (len(rows) - 1)
+
+    def _x(index):
+        return PADDING_LEFT + index * step
+
+    def _y(value):
+        return baseline - (float(value or 0) / top) * plot_height if top else baseline
+
+    lines = []
+    for series_index, (key, series_label) in enumerate(series):
+        points = [
+            {
+                'x': round(_x(i), 2),
+                'y': round(_y(row.get(key)), 2),
+                'label': str(row.get(label_key) or ''),
+                'value': row.get(key) or ZERO,
+            }
+            for i, row in enumerate(rows)
+        ]
+        path = ' '.join(
+            f'{"M" if i == 0 else "L"}{p["x"]},{p["y"]}' for i, p in enumerate(points)
+        )
+        area = (
+            f'{path} L{points[-1]["x"]},{baseline} L{points[0]["x"]},{baseline} Z'
+        )
+        lines.append({
+            'label': series_label,
+            'colour': SERIES_COLOURS[series_index % len(SERIES_COLOURS)],
+            'path': path,
+            'area': area,
+            'points': points,
+            # Only the first series gets a filled area; stacking translucent
+            # fills makes every line harder to read, not easier.
+            'fill': series_index == 0,
+        })
+
+    gridlines = [
+        {
+            'y': round(baseline - (step_index / 4) * plot_height, 2),
+            'value': round(top * step_index / 4, 2),
+        }
+        for step_index in range(5)
+    ]
+
+    # Thin the x labels so they never collide on a long range.
+    every = max(1, len(rows) // 12)
+    ticks = [
+        {'x': round(_x(i), 2), 'label': str(row.get(label_key) or '')}
+        for i, row in enumerate(rows)
+        if i % every == 0 or i == len(rows) - 1
+    ]
+
+    return {
+        'title': title,
+        'width': CHART_WIDTH,
+        'height': LINE_HEIGHT,
+        'baseline': baseline,
+        'axis_x': PADDING_LEFT,
+        'axis_right': CHART_WIDTH - PADDING_RIGHT,
+        'lines': lines,
+        'gridlines': gridlines,
+        'ticks': ticks,
+        'legend': [
+            {'label': label, 'colour': SERIES_COLOURS[i % len(SERIES_COLOURS)]}
+            for i, (_key, label) in enumerate(series)
+        ],
+    }
+
+
+DONUT_SIZE = 190
+DONUT_STROKE = 26
+
+
+def build_donut(rows, *, label_key, value_key, title='', centre_label=''):
+    """Share-of-total ring. Returns ``None`` when every slice is zero."""
+    import math
+
+    rows = [dict(row) for row in rows]
+    slices_in = [
+        (str(row.get(label_key) or 'Other'), float(row.get(value_key) or 0), row.get(value_key) or ZERO)
+        for row in rows
+    ]
+    slices_in = [s for s in slices_in if s[1] > 0]
+    total = sum(s[1] for s in slices_in)
+    if not slices_in or total <= 0:
+        return None
+
+    radius = (DONUT_SIZE - DONUT_STROKE) / 2
+    centre = DONUT_SIZE / 2
+    circumference = 2 * math.pi * radius
+
+    segments = []
+    offset = 0.0
+    for index, (label, value, raw) in enumerate(slices_in):
+        fraction = value / total
+        length = fraction * circumference
+        segments.append({
+            'label': label,
+            'value': raw,
+            'percent': round(fraction * 100, 1),
+            'colour': SERIES_COLOURS[index % len(SERIES_COLOURS)],
+            # dasharray draws one arc; dashoffset rotates it into place.
+            'dash': f'{length:.3f} {circumference - length:.3f}',
+            'offset': f'{-offset:.3f}',
+        })
+        offset += length
+
+    return {
+        'title': title,
+        'size': DONUT_SIZE,
+        'centre': centre,
+        'radius': radius,
+        'stroke': DONUT_STROKE,
+        'segments': segments,
+        'total': total,
+        'centre_label': centre_label,
+    }

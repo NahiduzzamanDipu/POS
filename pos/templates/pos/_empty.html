@@ -1,0 +1,10 @@
+{% comment %}
+Empty state for a table or panel.
+
+    {% include "pos/_empty.html" with title="No products found" hint="Adjust the filters." icon="box" %}
+{% endcomment %}
+<div class="empty">
+  <div class="empty__icon">{% include "pos/_icon.html" with name=icon|default:"inbox" cls="icon--lg" %}</div>
+  <strong>{{ title|default:"Nothing to show" }}</strong>
+  {% if hint %}<div>{{ hint }}</div>{% endif %}
+</div>

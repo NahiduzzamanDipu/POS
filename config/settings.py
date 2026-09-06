@@ -85,10 +85,11 @@ if DB_ENGINE in {'sqlite', 'sqlite3'}:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / os.getenv('SQLITE_NAME', 'db.sqlite3'),
             'OPTIONS': {
-                # WAL keeps reads working while a write is in flight, and the
-                # busy timeout stops "database is locked" under light concurrency.
-                'init_command': 'PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;',
-                'transaction_mode': 'IMMEDIATE',
+                # The busy timeout stops "database is locked" under light
+                # concurrency. WAL and synchronous=NORMAL are applied per
+                # connection in pos.apps -- Django 4.0's SQLite backend has no
+                # 'init_command' option, so the PRAGMAs go through the
+                # connection_created signal instead.
                 'timeout': 20,
             },
         }

@@ -224,7 +224,7 @@ class Product(TimeStampedModel):
         indexes = [models.Index(fields=['is_active', 'stock_quantity'])]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(selling_price__gte=0) & models.Q(cost_price__gte=0),
+                check=models.Q(selling_price__gte=0) & models.Q(cost_price__gte=0),
                 name='product_prices_non_negative',
             ),
         ]

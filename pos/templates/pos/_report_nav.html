@@ -1,8 +1,30 @@
-<nav class="report-tabs">
-  <a href="{% url 'pos:report_daily' %}" class="report-tab {% if request.resolver_match.url_name == 'report_daily' %}is-active{% endif %}">Daily Report</a>
-  <a href="{% url 'pos:report_monthly' %}" class="report-tab {% if request.resolver_match.url_name == 'report_monthly' %}is-active{% endif %}">Monthly Report</a>
-  <a href="{% url 'pos:report_yearly' %}" class="report-tab {% if request.resolver_match.url_name == 'report_yearly' %}is-active{% endif %}">Yearly Report</a>
-  <a href="{% url 'pos:report_customers' %}" class="report-tab {% if request.resolver_match.url_name == 'report_customers' %}is-active{% endif %}">Customer Report</a>
-  <a href="{% url 'pos:report_inventory' %}" class="report-tab {% if request.resolver_match.url_name == 'report_inventory' %}is-active{% endif %}">Inventory Report</a>
-  <a href="{% url 'pos:report_products' %}" class="report-tab {% if request.resolver_match.url_name == 'report_products' %}is-active{% endif %}">Product Performance</a>
+{% comment %}
+The report centre's tab strip. Daily / Monthly / Yearly are deliberately absent:
+one Sales Report with a From/To range replaced all three.
+{% endcomment %}
+<nav class="report-tabs" aria-label="Reports">
+  <a href="{% url 'pos:reports' %}" class="report-tab {% if request.resolver_match.url_name == 'reports' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="dashboard" %} Overview
+  </a>
+  <a href="{% url 'pos:report_sales' %}" class="report-tab {% if request.resolver_match.url_name == 'report_sales' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="chart" %} Sales Report
+  </a>
+  <a href="{% url 'pos:report_inventory' %}" class="report-tab {% if request.resolver_match.url_name == 'report_inventory' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="layers" %} Inventory Report
+  </a>
+  <a href="{% url 'pos:report_products' %}" class="report-tab {% if request.resolver_match.url_name == 'report_products' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="box" %} Product Performance
+  </a>
+  <a href="{% url 'pos:report_suppliers' %}" class="report-tab {% if request.resolver_match.url_name == 'report_suppliers' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="truck" %} Supplier Report
+  </a>
+  <a href="{% url 'pos:report_cashflow' %}" class="report-tab {% if request.resolver_match.url_name == 'report_cashflow' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="wallet" %} Cash Flow
+  </a>
+  <a href="{% url 'pos:report_collections' %}" class="report-tab {% if request.resolver_match.url_name == 'report_collections' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="badge-user" %} User Wise Collection
+  </a>
+  <a href="{% url 'pos:report_customers' %}" class="report-tab {% if request.resolver_match.url_name == 'report_customers' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="users" %} Customer Report
+  </a>
 </nav>

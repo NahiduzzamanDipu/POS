@@ -1,37 +1,106 @@
 {% extends "pos/base.html" %}
+{% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn" href="{% url 'pos:category_create' %}">Add Category</a>
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {{ active_count|intcomma }} active categor{{ active_count|pluralize:"y,ies" }}
+    grouping {{ product_count|intcomma }} product{{ product_count|pluralize }}
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  <a class="btn" href="{% url 'pos:category_create' %}">
+    {% include "pos/_icon.html" with name="plus" %} Add Category
+  </a>
 {% endblock %}
 
 {% block content %}
+<form class="filters" method="get">
+  <div class="field filters__grow">
+    <label for="q">Search</label>
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Category name or description">
+    </div>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All categories</option>
+      <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:category_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
+</form>
+
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Category</th><th>Description</th><th class="num">Products</th><th>Status</th><th></th></tr></thead>
+        <thead>
+          <tr><th>Category</th><th>Description</th><th class="num">Products</th>
+              <th>Status</th><th class="num">Action</th></tr>
+        </thead>
         <tbody>
           {% for category in page_obj %}
             <tr>
-              <td><strong>{{ category.name }}</strong></td>
-              <td class="muted">{{ category.description|default:"—"|truncatechars:70 }}</td>
-              <td class="num">{{ category.product_count }}</td>
               <td>
-                {% if category.is_active %}<span class="badge badge--success">Active</span>
-                {% else %}<span class="badge">Inactive</span>{% endif %}
+                <div class="media-cell">
+                  <span class="avatar avatar--brand">{{ category.name|slice:":1"|upper }}</span>
+                  <div class="media-cell__text">
+                    <div class="media-cell__title">{{ category.name }}</div>
+                  </div>
+                </div>
               </td>
-              <td class="num nowrap">
-                <a class="btn btn--ghost btn--sm" href="{% url 'pos:category_update' category.pk %}">Edit</a>
-                <form method="post" action="{% url 'pos:category_toggle' category.pk %}" style="display:inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn--ghost btn--sm">
-                    {% if category.is_active %}Deactivate{% else %}Activate{% endif %}
-                  </button>
-                </form>
+              <td class="muted">{{ category.description|default:"—"|truncatechars:80 }}</td>
+              <td class="num">
+                {% if category.product_count %}
+                  <a href="{% url 'pos:product_list' %}?category={{ category.pk }}">{{ category.product_count|intcomma }}</a>
+                {% else %}<span class="soft">0</span>{% endif %}
+              </td>
+              <td>
+                {% if category.is_active %}
+                  <span class="badge badge--success"><span class="badge__dot"></span>Active</span>
+                {% else %}
+                  <span class="badge"><span class="badge__dot"></span>Inactive</span>
+                {% endif %}
+              </td>
+              <td class="num">
+                <div class="act-group">
+                  <a class="act act--edit" href="{% url 'pos:category_update' category.pk %}" title="Edit">
+                    {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
+                  </a>
+                  <form method="post" action="{% url 'pos:category_toggle' category.pk %}"
+                        data-confirm="{% if category.is_active %}Deactivate &quot;{{ category.name }}&quot;? It stays in the database, but new products cannot be filed under it.{% else %}Activate &quot;{{ category.name }}&quot; so products can use it again?{% endif %}"
+                        data-confirm-label="{% if category.is_active %}Deactivate{% else %}Activate{% endif %}"
+                        data-confirm-tone="{% if category.is_active %}danger{% else %}safe{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="act {% if category.is_active %}act--danger{% else %}act--ok{% endif %}"
+                            title="{% if category.is_active %}Deactivate{% else %}Activate{% endif %}">
+                      {% if category.is_active %}
+                        {% include "pos/_icon.html" with name="x" cls="icon--sm" %}
+                      {% else %}
+                        {% include "pos/_icon.html" with name="check" cls="icon--sm" %}
+                      {% endif %}
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="5"><div class="empty"><strong>No categories yet</strong>Add one to start grouping products.</div></td></tr>
+            <tr><td colspan="5">
+              {% include "pos/_empty.html" with title="No categories yet" hint="Add one to start grouping products." icon="tag" %}
+            </td></tr>
           {% endfor %}
         </tbody>
       </table>

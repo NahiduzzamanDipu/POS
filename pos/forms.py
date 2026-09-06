@@ -1,11 +1,12 @@
 """Forms. All validation that matters is enforced here, not in JavaScript."""
 
+import re
 from decimal import Decimal
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 
 from .customers import number_variants, validate_customer_number
@@ -15,7 +16,6 @@ from .models import (
     Customer,
     PaymentMethod,
     Product,
-    Role,
     StockMovement,
     StoreSetting,
     Supplier,
@@ -42,33 +42,65 @@ class StyledFormMixin:
 
 
 class LoginForm(StyledFormMixin, AuthenticationForm):
-    """The mock-up offers a role selector; it is verified, never trusted."""
+    """Sign in with an email address or a phone number.
 
-    role = forms.ChoiceField(
-        choices=Role.choices, required=False, label='Select Role'
-    )
+    The field keeps Django's ``username`` name so ``AuthenticationForm`` (and
+    the auth backends behind it) work untouched -- what changes is only how the
+    typed identifier is resolved to an account, in ``clean_username``. The role
+    is never asked for: it is read from the account once the password checks
+    out (BR-002).
+    """
 
     error_messages = {
         **AuthenticationForm.error_messages,
-        'invalid_login': 'Incorrect username or password.',
+        'invalid_login': 'No account matches that email or phone, or the password is wrong.',
     }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs['placeholder'] = 'Enter your username'
-        self.fields['username'].widget.attrs['autofocus'] = True
-        self.fields['password'].widget.attrs['placeholder'] = 'Enter your password'
+        field = self.fields['username']
+        field.label = 'Email or Phone'
+        field.widget.attrs.update({
+            'placeholder': 'you@example.com or 01XXXXXXXXX',
+            'autofocus': True,
+            'autocomplete': 'username',
+            'autocapitalize': 'none',
+            'spellcheck': 'false',
+        })
+        self.fields['password'].widget.attrs.update({
+            'placeholder': 'Enter your password',
+            'autocomplete': 'current-password',
+        })
 
-    def clean(self):
-        cleaned = super().clean()
-        selected_role = cleaned.get('role')
-        user = self.get_user()
-        if user and selected_role and user.role != selected_role and not user.is_superuser:
+    def clean_username(self):
+        """Turn whatever was typed into the account's stored username.
+
+        Returns the raw value when nothing matches, so a wrong address fails as
+        an ordinary bad login rather than telling a stranger which addresses
+        exist.
+        """
+        raw = (self.cleaned_data.get('username') or '').strip()
+        if not raw:
+            return raw
+
+        if '@' in raw:
+            matches = list(User.objects.filter(email__iexact=raw)[:2])
+        else:
+            lookup = Q(phone__iexact=raw)
+            for variant in number_variants(raw):
+                lookup |= Q(phone=variant)
+            matches = list(User.objects.filter(lookup)[:2])
+            if not matches:
+                # Last resort so that no existing account is locked out. The
+                # login screen never mentions usernames.
+                matches = list(User.objects.filter(username__iexact=raw)[:2])
+
+        if len(matches) > 1:
             raise ValidationError(
-                f'This account is registered as {user.get_role_display()}, '
-                'not the role you selected.'
+                'That phone number is registered to more than one account. '
+                'Please sign in with your email address instead.'
             )
-        return cleaned
+        return matches[0].username if matches else raw
 
 
 class CategoryForm(StyledFormMixin, forms.ModelForm):
@@ -172,8 +204,29 @@ class CustomerForm(StyledFormMixin, forms.ModelForm):
         return number
 
 
+def unique_username_for(email, fallback=''):
+    """A stable internal username derived from the employee's email address.
+
+    Usernames became an implementation detail of Django's auth tables once
+    people started signing in with an email or phone, so one is generated
+    rather than asked for. It is never shown in the interface.
+    """
+    base = re.sub(r'[^a-z0-9._-]', '', (email or '').split('@')[0].lower())
+    if not base:
+        base = re.sub(r'[^a-z0-9._-]', '', (fallback or '').lower()) or 'staff'
+    candidate, suffix = base, 1
+    while User.objects.filter(username__iexact=candidate).exists():
+        suffix += 1
+        candidate = '{0}{1}'.format(base, suffix)
+    return candidate
+
+
 class EmployeeForm(StyledFormMixin, forms.ModelForm):
-    """BR-030. Passwords are set through Django's hashers, never stored raw."""
+    """BR-030. Passwords go through Django's hashers, never stored raw.
+
+    The email address doubles as the sign-in identifier, so it is required and
+    unique. ``username`` is generated from it and is deliberately not a field.
+    """
 
     password1 = forms.CharField(
         label='Password', widget=forms.PasswordInput, required=False,
@@ -185,19 +238,50 @@ class EmployeeForm(StyledFormMixin, forms.ModelForm):
 
     class Meta:
         model = User
-        # employee_id is deliberately absent: it is generated server-side
-        # (User.save) and must never be chosen by hand.
+        # username and employee_id are both absent on purpose: one is derived
+        # from the email, the other is generated server-side (User.save).
         fields = [
-            'username', 'first_name', 'last_name', 'email', 'phone',
+            'first_name', 'last_name', 'email', 'phone',
             'position', 'role', 'is_active',
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['email'].required = True
+        self.fields['email'].help_text = 'Used to sign in. Must be unique.'
+        self.fields['first_name'].required = True
+        self.fields['phone'].help_text = 'Optional second way to sign in.'
         if self.instance.pk is None:
             self.fields['password1'].required = True
             self.fields['password2'].required = True
             self.fields['password1'].help_text = 'At least 8 characters.'
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip().lower()
+        clash = User.objects.filter(email__iexact=email)
+        if self.instance.pk:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise ValidationError('Another account already uses this email address.')
+        return email
+
+    def clean_phone(self):
+        """A blank phone is fine; a shared one is not, since it can sign in."""
+        phone = (self.cleaned_data.get('phone') or '').strip()
+        if not phone:
+            return phone
+        lookup = Q(phone__iexact=phone)
+        for variant in number_variants(phone):
+            lookup |= Q(phone=variant)
+        clash = User.objects.filter(lookup)
+        if self.instance.pk:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise ValidationError(
+                'Another account already uses this phone number. Sign-in would '
+                'be ambiguous, so each number must belong to one account.'
+            )
+        return phone
 
     def clean(self):
         cleaned = super().clean()
@@ -211,6 +295,10 @@ class EmployeeForm(StyledFormMixin, forms.ModelForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        if not user.username:
+            user.username = unique_username_for(
+                self.cleaned_data.get('email'), self.cleaned_data.get('first_name')
+            )
         password = self.cleaned_data.get('password1')
         if password:
             user.set_password(password)
@@ -266,8 +354,7 @@ class StoreSettingForm(StyledFormMixin, forms.ModelForm):
         fields = [
             'business_name', 'address', 'phone', 'email', 'currency_symbol',
             'tax_rate', 'invoice_prefix', 'existing_customer_discount_percent',
-            'allow_negative_stock', 'allow_self_registration',
-            'require_registration_approval', 'receipt_footer',
+            'allow_negative_stock', 'receipt_footer',
         ]
         labels = {
             'existing_customer_discount_percent': 'Existing customer discount (%)',
@@ -358,64 +445,6 @@ class CheckoutForm(forms.Form):
     def clean_customer_number(self):
         return validate_customer_number(self.cleaned_data.get('customer_number'), required=False)
 
-
-
-class RegistrationForm(StyledFormMixin, forms.ModelForm):
-    """Self-service sign-up from the login page.
-
-    The role is never taken from the submitted data: a new account is always a
-    Cashier, and by default stays disabled until a Manager or Administrator
-    enables it (BR-002, BRL-11). Only those two things keep an open
-    registration form from being a privilege-escalation hole.
-    """
-
-    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Confirm password', widget=forms.PasswordInput)
-
-    class Meta:
-        model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'phone']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs['placeholder'] = 'Choose a username'
-        self.fields['first_name'].required = True
-        self.fields['email'].required = True
-        self.fields['password1'].widget.attrs['placeholder'] = 'At least 8 characters'
-        self.fields['password2'].widget.attrs['placeholder'] = 'Repeat your password'
-
-    def clean_email(self):
-        email = self.cleaned_data['email'].strip().lower()
-        if User.objects.filter(email__iexact=email).exists():
-            raise ValidationError('An account already uses this email address.')
-        return email
-
-    def clean_password2(self):
-        p1 = self.cleaned_data.get('password1')
-        p2 = self.cleaned_data.get('password2')
-        if p1 and p2 and p1 != p2:
-            raise ValidationError('The two password fields do not match.')
-        return p2
-
-    def _post_clean(self):
-        super()._post_clean()
-        password = self.cleaned_data.get('password1')
-        if password:
-            try:
-                validate_password(password, self.instance)
-            except ValidationError as error:
-                self.add_error('password1', error)
-
-    def save(self, commit=True, *, requires_approval=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data['password1'])
-        user.role = Role.CASHIER          # never read from the submitted form
-        user.is_staff = False
-        user.is_superuser = False
-        user.is_active = not requires_approval
-        if commit:
-            user.save()
-        return user
 
 
 class ProductImportForm(StyledFormMixin, forms.Form):

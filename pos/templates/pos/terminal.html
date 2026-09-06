@@ -1,110 +1,137 @@
 {% extends "pos/base.html" %}
 {% load static humanize %}
 
+{% comment %}
+The till. Search -> pick -> add to cart -> take payment.
+
+There is deliberately no product grid: on a catalogue of any size, browsing
+tiles is slower than typing three letters, and it turns the sales screen into a
+second Products page. Results come from the lookup API as the cashier types.
+{% endcomment %}
+
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    Search a product by name, SKU or barcode, then add it to the cart.
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:sale_list' %}">
+    {% include "pos/_icon.html" with name="receipt" %} Transactions
+  </a>
+{% endblock %}
+
 {% block content %}
-<div class="pos-layout">
+<div class="pos">
+
+  {# ------------------------------------------------------ product search #}
   <div>
     <div class="pos-search">
-      <input type="search" id="product-search" autocomplete="off" autofocus
-             placeholder="Search product or scan barcode..." value="{{ search_term }}"
-             aria-label="Search products">
+      <div class="pos-search__box">
+        {% include "pos/_icon.html" with name="search" cls="icon--lg icon--search" %}
+        <input type="search" id="product-search" class="input" autocomplete="off" autofocus
+               placeholder="Search product name, SKU or scan a barcode&hellip;"
+               value="{{ search_term }}" aria-label="Search products"
+               aria-controls="search-results" role="combobox" aria-expanded="false">
+        <span class="pos-search__hint">Enter to add</span>
+      </div>
+      <div class="pos-search__status muted" id="search-status" aria-live="polite">
+        Start typing to find a product.
+      </div>
     </div>
 
-    <div class="product-grid" id="product-grid">
-      {% for product in products %}
-        <button type="button" class="product-tile"
-                data-id="{{ product.id }}"
-                data-name="{{ product.name }}"
-                data-price="{{ product.selling_price }}"
-                data-discount="{{ product.discount_percent }}"
-                data-final="{{ product.final_price }}"
-                data-stock="{{ product.stock_quantity }}"
-                data-image="{{ product.image_url }}"
-                {% if product.stock_quantity <= 0 %}disabled{% endif %}>
-          {% if product.image_url %}
-            <img class="product-tile__media" src="{{ product.image_url }}" alt="" loading="lazy">
-          {% else %}
-            <span class="product-tile__media product-tile__media--empty">{{ product.initials }}</span>
-          {% endif %}
-          <span class="product-tile__name">{{ product.name }}</span>
-          <span class="product-tile__price">
-            {{ currency }} {{ product.final_price|floatformat:2 }}
-            {% if product.discount_percent > 0 %}
-              <s class="muted small">{{ currency }} {{ product.selling_price|floatformat:2 }}</s>
-            {% endif %}
-          </span>
-          <span class="product-tile__meta">
-            {% if product.discount_percent > 0 %}
-              <span class="badge badge--success">{{ product.discount_percent|floatformat:"-2" }}% off</span>
-            {% endif %}
-            {% if product.stock_quantity <= 0 %}Out of stock
-            {% else %}{{ product.stock_quantity }} {{ product.get_unit_display|lower }} in stock{% endif %}
-          </span>
-        </button>
-      {% empty %}
-        <p class="muted">No products match that search.</p>
-      {% endfor %}
-    </div>
-    <p class="muted small" id="grid-note" style="margin-top:16px"></p>
+    <section class="card" style="margin-top:12px">
+      <div class="card__head">
+        <h2>Search Results</h2>
+        <div class="spacer"></div>
+        <span class="muted small" id="result-count"></span>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="result-list" id="search-results" role="listbox" aria-label="Search results"></div>
+        <div id="search-empty">
+          {% include "pos/_empty.html" with title="Nothing searched yet" hint="Type at least two characters, or scan a barcode to add it straight to the cart." icon="search" %}
+        </div>
+      </div>
+    </section>
   </div>
 
+  {# ---------------------------------------------------------------- cart #}
   <form class="card cart" method="post" action="{% url 'pos:checkout' %}" id="checkout-form">
     {% csrf_token %}
     <input type="hidden" name="cart" id="cart-field">
     <input type="hidden" name="txn_token" value="{{ txn_token }}">
     <input type="hidden" name="payment_method" id="payment-method" value="CASH">
 
+    <div class="card__head">
+      <h2>Shopping Cart</h2>
+      <span class="badge badge--brand" id="cart-count">0 items</span>
+      <div class="spacer"></div>
+      <button type="button" class="btn btn--ghost btn--sm" id="clear-cart">
+        {% include "pos/_icon.html" with name="trash" cls="icon--sm" %} Clear
+      </button>
+    </div>
+
+    <div class="cart__lines" id="cart-lines"></div>
+
     <div class="card__body">
-      <h2 class="cart__title">Shopping Cart</h2>
-
-      <div class="cart__lines" id="cart-lines">
-        <p class="muted small" id="cart-empty">Scan or click a product to start the sale.</p>
-      </div>
-
-      <div class="cart__aux" style="margin-top:18px">
-        <div class="field">
-          <label for="customer-number">Customer Number</label>
+      <div class="field">
+        <label for="customer-number">Customer Number</label>
+        <div class="input-icon">
+          {% include "pos/_icon.html" with name="phone" %}
           <input type="tel" name="customer_number" id="customer-number" class="input"
                  inputmode="numeric" autocomplete="off" maxlength="20"
                  placeholder="01XXXXXXXXX">
-          <div id="customer-status" class="customer-status" aria-live="polite">
-            <span class="muted small">Optional. Enter the number to check for a returning customer.</span>
-          </div>
+        </div>
+        <div id="customer-status" class="customer-status" aria-live="polite">
+          <span class="muted small">Optional. Enter it to check for a returning customer.</span>
         </div>
       </div>
 
-      <div class="totals">
-        <div class="totals__row"><span>Subtotal</span><span id="t-subtotal">{{ currency }} 0.00</span></div>
-        <div class="totals__row" id="row-product-discount">
+      <div class="totals" style="margin-top:18px">
+        <div class="totals__row totals__row--muted">
+          <span>Subtotal</span><span id="t-subtotal">{{ currency }} 0.00</span>
+        </div>
+        <div class="totals__row totals__row--muted totals__row--discount">
           <span>Product Discount</span><span id="t-product-discount">{{ currency }} 0.00</span>
         </div>
-        <div class="totals__row" id="row-customer-discount">
+        <div class="totals__row totals__row--muted totals__row--discount">
           <span id="t-customer-label">Customer Discount</span>
           <span id="t-customer-discount">{{ currency }} 0.00</span>
         </div>
-        <div class="totals__row"><span>Tax ({{ tax_rate|floatformat:"-2" }}%)</span><span id="t-tax">{{ currency }} 0.00</span></div>
-        <div class="totals__row totals__row--grand"><span>Total</span><span id="t-total">{{ currency }} 0.00</span></div>
+        <div class="totals__row totals__row--muted">
+          <span>Tax ({{ tax_rate|floatformat:"-2" }}%)</span><span id="t-tax">{{ currency }} 0.00</span>
+        </div>
+        <div class="totals__row totals__row--grand">
+          <span>Total</span><span id="t-total">{{ currency }} 0.00</span>
+        </div>
       </div>
 
-      <div class="pay-methods" role="group" aria-label="Payment method">
-        {% for value, label in payment_methods %}
-          <button type="button" class="pay-method {% if value == 'CASH' %}is-active{% endif %}"
-                  data-method="{{ value }}">{{ label }}</button>
-        {% endfor %}
+      <div class="field" style="margin-top:18px">
+        <label>Payment Method</label>
+        <div class="pay-methods" role="group" aria-label="Payment method">
+          {% for value, label in payment_methods %}
+            <button type="button" class="pay-method {% if value == 'CASH' %}is-active{% endif %}"
+                    data-method="{{ value }}" aria-pressed="{% if value == 'CASH' %}true{% else %}false{% endif %}">
+              {% if value == 'CASH' %}{% include "pos/_icon.html" with name="cash" %}
+              {% elif value == 'CARD' %}{% include "pos/_icon.html" with name="card" %}
+              {% elif value == 'MOBILE' %}{% include "pos/_icon.html" with name="mobile" %}
+              {% else %}{% include "pos/_icon.html" with name="bank" %}{% endif %}
+              {{ label }}
+            </button>
+          {% endfor %}
+        </div>
       </div>
 
-      <div class="field" id="cash-block">
+      <div class="field" id="cash-block" style="margin-top:14px">
         <label for="amount-paid">Cash received</label>
         <input type="number" name="amount_paid" id="amount-paid" class="input" min="0" step="0.01"
-               placeholder="0.00">
-        <span class="helptext" id="change-note">Change will be calculated after the total.</span>
+               placeholder="0.00" autocomplete="off">
+        <span class="helptext" id="change-note">Change is worked out once there is a total.</span>
       </div>
 
-      <button type="submit" class="btn btn--success btn--block btn--lg" id="complete-sale" disabled>
-        Complete Sale
-      </button>
-      <button type="button" class="btn btn--ghost btn--block" id="clear-cart" style="margin-top:10px">
-        Clear Cart
+      <button type="submit" class="btn btn--success btn--block btn--lg" id="complete-sale"
+              style="margin-top:18px" disabled>
+        {% include "pos/_icon.html" with name="check" %} Complete Sale
       </button>
     </div>
   </form>
@@ -121,5 +148,5 @@
     loyaltyPercent: "{{ loyalty_percent|floatformat:'-2' }}"
   };
 </script>
-<script src="{% static 'pos/js/terminal.js' %}"></script>
+<script src="{% static 'pos/js/terminal.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

@@ -1,25 +1,139 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
+{% comment %}
+The trading picture for today: summary tiles, charts and today's transactions.
+Catalogue management deliberately lives under Products, not here.
+{% endcomment %}
+
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {% if sees_everything %}Today at {{ store.business_name }}
+    {% else %}Your till today{% endif %}
+    &middot; {% now "l, j F Y" %}
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  {% if 'pos.sell' in capabilities %}
+    <a class="btn" href="{% url 'pos:pos_terminal' %}">
+      {% include "pos/_icon.html" with name="sale" %} New Sale
+    </a>
+  {% endif %}
+  {% if 'report.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:report_sales' %}">
+      {% include "pos/_icon.html" with name="chart" %} Sales Report
+    </a>
+  {% endif %}
+{% endblock %}
+
 {% block content %}
+
+{# ------------------------------------------------------------ summary #}
 <div class="stat-grid">
   {% for card in cards %}
-    <div class="stat">
-      <div class="stat__label">{{ card.label }}</div>
-      <div class="stat__value">
-        {% if card.money %}{{ currency }} {{ card.value|floatformat:2|intcomma }}
-        {% else %}{{ card.value|intcomma }}{% endif %}
+    <div class="stat {% if card.tone %}stat--{{ card.tone }}{% endif %}">
+      <span class="stat__icon">{% include "pos/_icon.html" with id=card.icon cls="icon--lg" %}</span>
+      <div class="stat__text">
+        <div class="stat__label">{{ card.label }}</div>
+        <div class="stat__value">
+          {% if card.money %}{{ currency }} {{ card.value|floatformat:2|intcomma }}
+          {% else %}{{ card.value|intcomma }}{% endif %}
+        </div>
+        <div class="stat__meta">
+          {% if card.url %}
+            <a href="{% url card.url %}{{ card.query }}">{{ card.meta }}</a>
+          {% else %}{{ card.meta }}{% endif %}
+        </div>
       </div>
     </div>
   {% endfor %}
+
+  {% if best_seller %}
+    <div class="stat stat--success">
+      <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+      <div class="stat__text">
+        <div class="stat__label">Best Seller</div>
+        <div class="stat__value stat__value--sm" title="{{ best_seller.product_name }}">
+          {{ best_seller.product_name|truncatechars:18 }}
+        </div>
+        <div class="stat__meta">{{ best_seller.units|intcomma }} units sold all time</div>
+      </div>
+    </div>
+  {% endif %}
 </div>
 
+{# -------------------------------------------------------------- charts #}
 <div class="stack">
+  {% include "pos/_line_chart.html" with chart=trend_chart %}
+
+  <div class="grid-2">
+    {% if today_chart %}
+      {% include "pos/_chart.html" with chart=today_chart %}
+    {% else %}
+      <section class="card">
+        <div class="card__head"><h2>Today's sales by hour</h2></div>
+        <div class="card__body card__body--flush">
+          {% include "pos/_empty.html" with title="No sales yet today" hint="The hourly breakdown appears as sales are rung up." icon="clock" %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if best_chart %}
+      {% include "pos/_donut.html" with donut=best_chart title="Best selling products" %}
+    {% elif stock_chart %}
+      {% include "pos/_donut.html" with donut=stock_chart title="Stock status" %}
+    {% endif %}
+  </div>
+
+  {% if best_chart and stock_chart %}
+    <div class="grid-2">
+      {% include "pos/_donut.html" with donut=stock_chart title="Stock status" %}
+
+      {% if best_sellers %}
+        <section class="card">
+          <div class="card__head">
+            <h2>Best selling products</h2>
+            <div class="spacer"></div>
+            <a class="btn btn--ghost btn--sm" href="{% url 'pos:report_products' %}">Full report</a>
+          </div>
+          <div class="card__body card__body--flush">
+            <div class="table-wrap">
+              <table class="data data--tight">
+                <thead>
+                  <tr><th>Product</th><th style="width:110px">Share</th>
+                      <th class="num">Units</th><th class="num">Revenue</th></tr>
+                </thead>
+                <tbody>
+                  {% for row in best_sellers %}
+                    <tr>
+                      <td class="strong">{{ row.product_name }}</td>
+                      <td>
+                        <div class="meter"><div class="meter__fill meter__fill--success"
+                             style="width:{{ row.share }}%"></div></div>
+                      </td>
+                      <td class="num">{{ row.units|intcomma }}</td>
+                      <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# ------------------------------------------------ today's transactions #}
   <section class="card">
     <div class="card__head">
-      <h2>Recent Transactions</h2>
-      <div class="topbar__spacer"></div>
-      <a class="btn btn--ghost btn--sm" href="{% url 'pos:sale_list' %}">View all</a>
+      <h2>Today's Transactions</h2>
+      <span class="badge badge--brand">{{ todays_count|intcomma }} today</span>
+      <div class="spacer"></div>
+      <a class="btn btn--ghost btn--sm" href="{% url 'pos:sale_list' %}">
+        View all {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+      </a>
     </div>
     <div class="card__body card__body--flush">
       <div class="table-wrap">
@@ -28,30 +142,49 @@
             <tr>
               <th>Invoice ID</th>
               <th>Customer</th>
+              <th>Time</th>
               <th class="num">Amount</th>
               <th>Payment</th>
               <th>Status</th>
+              <th class="num">Action</th>
             </tr>
           </thead>
           <tbody>
-            {% for sale in recent_sales %}
+            {% for sale in todays_sales %}
               <tr>
-                <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
-                <td>{{ sale.customer_label }}</td>
-                <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
-                <td>{{ sale.get_payment_method_display }}</td>
                 <td>
-                  <span class="badge {% if sale.status == 'COMPLETED' %}badge--success{% elif sale.status == 'VOID' %}badge--danger{% else %}badge--warn{% endif %}">
-                    {{ sale.get_status_display }}
-                  </span>
+                  <a class="media-cell__title" href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a>
+                  {% if sees_everything %}
+                    <div class="media-cell__sub">by {{ sale.cashier.display_name }}</div>
+                  {% endif %}
+                </td>
+                <td class="nowrap">{{ sale.customer_label }}</td>
+                <td class="nowrap muted">{{ sale.created_at|date:"H:i" }}</td>
+                <td class="num strong">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+                <td><span class="badge">{{ sale.get_payment_method_display }}</span></td>
+                <td>
+                  {% if sale.status == 'COMPLETED' %}
+                    <span class="badge badge--success"><span class="badge__dot"></span>Completed</span>
+                  {% elif sale.status == 'VOID' %}
+                    <span class="badge badge--danger"><span class="badge__dot"></span>Void</span>
+                  {% else %}
+                    <span class="badge badge--warn"><span class="badge__dot"></span>{{ sale.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td class="num">
+                  <div class="act-group">
+                    <a class="act act--view" href="{% url 'pos:sale_detail' sale.pk %}" title="View sale">
+                      {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                    </a>
+                    <a class="act act--edit" href="{% url 'pos:invoice' sale.pk %}" title="Invoice">
+                      {% include "pos/_icon.html" with name="receipt" cls="icon--sm" %}
+                    </a>
+                  </div>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="5">
-                <div class="empty">
-                  <strong>No transactions yet</strong>
-                  Completed sales will appear here.
-                </div>
+              <tr><td colspan="7">
+                {% include "pos/_empty.html" with title="No transactions yet today" hint="Completed sales appear here the moment they are rung up." icon="receipt" %}
               </td></tr>
             {% endfor %}
           </tbody>
@@ -60,55 +193,47 @@
     </div>
   </section>
 
-  <div class="grid-2">
-    {% if low_stock %}
-      <section class="card">
-        <div class="card__head">
-          <h2>Low Stock Alert</h2>
-          <div class="topbar__spacer"></div>
-          <a class="btn btn--ghost btn--sm" href="{% url 'pos:report_inventory' %}?status=low">Details</a>
+  {# ---------------------------------------------------- low stock alert #}
+  {% if low_stock %}
+    <section class="card">
+      <div class="card__head">
+        <h2>Low Stock Alert</h2>
+        <span class="badge badge--warn">{{ low_count }} product{{ low_count|pluralize }}</span>
+        <div class="spacer"></div>
+        <a class="btn btn--ghost btn--sm" href="{% url 'pos:report_inventory' %}?status=low">
+          Details {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+        </a>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="table-wrap">
+          <table class="data data--tight">
+            <thead>
+              <tr><th>Product</th><th>Category</th>
+                  <th class="num">In stock</th><th class="num">Minimum</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {% for product in low_stock %}
+                <tr>
+                  <td>
+                    <div class="media-cell">
+                      {% include "pos/_product_thumb.html" with product=product %}
+                      <div class="media-cell__text">
+                        <a class="media-cell__title" href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                        <div class="media-cell__sub">{{ product.sku }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="muted">{{ product.category.name }}</td>
+                  <td class="num strong">{{ product.stock_quantity }}</td>
+                  <td class="num muted">{{ product.min_stock_level }}</td>
+                  <td><span class="badge badge--warn"><span class="badge__dot"></span>Low Stock</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <div class="card__body card__body--flush">
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Product</th><th>Category</th><th class="num">In stock</th><th class="num">Minimum</th></tr></thead>
-              <tbody>
-                {% for product in low_stock %}
-                  <tr>
-                    <td>{{ product.name }}</td>
-                    <td class="muted">{{ product.category.name }}</td>
-                    <td class="num"><span class="badge badge--warn">{{ product.stock_quantity }}</span></td>
-                    <td class="num muted">{{ product.min_stock_level }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    {% endif %}
-
-    {% if best_sellers %}
-      <section class="card">
-        <div class="card__head"><h2>Best Selling Products</h2></div>
-        <div class="card__body card__body--flush">
-          <div class="table-wrap">
-            <table class="data">
-              <thead><tr><th>Product</th><th class="num">Units sold</th><th class="num">Revenue</th></tr></thead>
-              <tbody>
-                {% for row in best_sellers %}
-                  <tr>
-                    <td>{{ row.product_name }}</td>
-                    <td class="num">{{ row.units }}</td>
-                    <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    {% endif %}
-  </div>
+      </div>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}

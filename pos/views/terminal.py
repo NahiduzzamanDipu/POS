@@ -31,19 +31,21 @@ def _issue_txn_token(request):
 
 @require(POS_SELL)
 def pos_terminal(request):
+    """The till.
+
+    Deliberately renders no product catalogue: the cashier searches, picks and
+    adds. Results come from :func:`product_lookup` as they type, which keeps
+    the first paint instant on a 1000-product catalogue and keeps the screen
+    about the sale in hand rather than about browsing stock.
+    """
     store = StoreSetting.load()
-    products = Product.objects.active().select_related('category').order_by('name')
-    term = request.GET.get('q', '').strip()
-    if term:
-        products = products.search(term)
 
     return render(
         request,
         'pos/terminal.html',
         {
             'page_title': 'New Sale',
-            'products': products[:60],
-            'search_term': term,
+            'search_term': request.GET.get('q', '').strip(),
             'tax_rate': store.tax_rate,
             'loyalty_percent': store.existing_customer_discount_percent,
             'txn_token': _issue_txn_token(request),

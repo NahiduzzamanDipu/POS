@@ -1,0 +1,35 @@
+{% comment %}
+The From / To filter used by the reports that take a date range and nothing
+else. Reports with extra controls (a category, a role) write their own
+`.filters` form so the whole bar stays one <form>.
+
+    {% include "pos/_date_filter.html" with form=form export_href=export_href %}
+
+Reset points at the bare path, so it clears every parameter at once.
+{% endcomment %}
+<form class="filters" method="get">
+  <div class="field">
+    <label for="{{ form.from_date.id_for_label }}">From Date</label>
+    {{ form.from_date }}
+    {{ form.from_date.errors }}
+  </div>
+  <div class="field">
+    <label for="{{ form.to_date.id_for_label }}">To Date</label>
+    {{ form.to_date }}
+    {{ form.to_date.errors }}
+  </div>
+
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Apply Filter
+    </button>
+    <a class="btn btn--ghost" href="{{ request.path }}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+    {% if export_href %}
+      <a class="btn btn--ghost" href="{{ export_href }}">
+        {% include "pos/_icon.html" with name="download" %} CSV
+      </a>
+    {% endif %}
+  </div>
+</form>

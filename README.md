@@ -67,7 +67,7 @@ covered by tests — see [Testing](#testing).
 
 ## Technology stack
 
-- **Python** 3.13, **Django** 6.1
+- **Python** 3.9.2, **Django** 4.0.3
 - **MySQL** 8.4 (database `pos_system`), via `mysqlclient`
 - **Frontend**: server-rendered Django templates, hand-written CSS, vanilla JavaScript
 - **Config**: `python-dotenv`
@@ -113,6 +113,9 @@ no benefit. Modularity comes from the `views/` package and the services layer in
 
 ## Installation
 
+The project targets **Python 3.9.2** — Django 4.0.3 supports Python 3.8-3.10 only,
+so a newer interpreter will not work.
+
 ```bash
 # From the project root, with the bundled virtual environment
 venv/Scripts/activate            # Windows
@@ -120,6 +123,16 @@ venv/Scripts/activate            # Windows
 
 pip install -r requirements.txt
 ```
+
+Building the environment from scratch instead:
+
+```powershell
+py -3.9 -m venv venv             # Windows; python3.9 -m venv venv elsewhere
+venv/Scripts/activate
+pip install -r requirements.txt
+```
+
+`run.ps1` refuses to start if the venv was built on a different Python version.
 
 ---
 
@@ -130,7 +143,7 @@ The project runs on **either** backend, chosen by `DB_ENGINE` in `.env`:
 | `DB_ENGINE` | Needs a server? | Use it for |
 |---|---|---|
 | `sqlite` | **No** | Running the project anywhere with zero setup — a fresh clone, a laptop, a demo, anyone you send it to |
-| `mysql` *(currently in use)* | Yes, MySQL 8.0.11+ | The shared `pos_system` database |
+| `mysql` *(currently in use)* | Yes, MySQL 5.7+ / MariaDB 10.2+ | The shared `pos_system` database |
 
 > **This project is currently set to `mysql`**, pointing at `pos_system` on
 > MySQL 8.4 at `127.0.0.1:3307`. `run.ps1` starts that server automatically.
@@ -149,15 +162,10 @@ starts with the real catalogue and sales history already in place.
 
 Set `DB_ENGINE=mysql` in `.env`, then make sure the server is running.
 
-> **XAMPP will not work.** Django 6.1 requires MySQL 8.0.11+ or MariaDB 10.11+, and
-> XAMPP ships MariaDB 10.4:
->
-> ```
-> django.db.utils.NotSupportedError: MariaDB 10.11 or later is required (found 10.4.32).
-> ```
->
-> On this machine MySQL 8.4 is installed separately at `C:\Users\Asus\mysql84`
-> and listens on **3307**, leaving XAMPP's 3306 untouched.
+> Django 4.0.3 needs MySQL 5.7+ or MariaDB 10.2+, so XAMPP's bundled MariaDB is new
+> enough on its own. This machine still uses the standalone MySQL 8.4 at
+> `C:\Users\Asus\mysql84` on port **3307**, leaving XAMPP's 3306 untouched — point
+> `DB_HOST`/`DB_PORT` at whichever server you actually run.
 
 Start it:
 
@@ -659,9 +667,9 @@ Where the BRS left room, these choices were made and are documented rather than 
 
 ## Troubleshooting
 
-**`NotSupportedError: MariaDB 10.11 or later is required (found 10.4.x)`**
-You are pointing at XAMPP's MariaDB. Django 6.1 does not support it. Start the MySQL 8.4
-server and set `DB_PORT=3307` in `.env`.
+**`NotSupportedError: MariaDB 10.2 or later is required` / `MySQL 5.7 or later is required`**
+Your server is older than Django 4.0.3 supports. Start the MySQL 8.4 server and set
+`DB_PORT=3307` in `.env`.
 
 **Date filters return nothing / dashboard shows zero for today**
 MySQL can only resolve named time zones (`Asia/Dhaka`) after its `mysql.time_zone` tables
