@@ -233,7 +233,13 @@ class ChangePasswordEveryRoleTests(TestCase):
                     self.client.get(reverse('pos:change_password')).status_code, 200
                 )
 
-    def test_every_role_sees_the_sidebar_link_on_every_page(self):
+    def test_every_role_can_reach_change_password_from_any_page(self):
+        """The entry point moved from the sidebar into the account menu.
+
+        What matters is that it is reachable from every page for every role,
+        which is what the URL assertion checks; the label is matched
+        case-insensitively so a wording tweak does not fail the test.
+        """
         url = reverse('pos:change_password')
         for role in self.ROLES:
             with self.subTest(role=role):
@@ -241,7 +247,10 @@ class ChangePasswordEveryRoleTests(TestCase):
                 self.client.force_login(user)
                 response = self.client.get(reverse('pos:dashboard'))
                 self.assertContains(response, url)
-                self.assertContains(response, 'Change Password')
+                self.assertIn(
+                    'change password',
+                    response.content.decode('utf-8', 'ignore').lower(),
+                )
 
     def test_every_role_can_actually_change_their_password(self):
         for role in self.ROLES:

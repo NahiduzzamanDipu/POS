@@ -13,11 +13,21 @@ pos.views._helpers.query_string) so paging keeps the current filter.
 
   {% if page_obj.paginator.num_pages > 1 %}
     <div class="pagination__pages">
-      <a class="page-link {% if not page_obj.has_previous %}is-disabled{% endif %}"
-         href="?page={{ page_obj.previous_page_number|default:1 }}{{ querystring }}"
-         aria-label="Previous page">
-        {% include "pos/_icon.html" with name="chevron-left" cls="icon--sm" %}
-      </a>
+      {# previous_page_number() RAISES EmptyPage on page 1, and a template
+         filter cannot catch an exception -- |default only ever sees a value
+         that was returned. Guard on has_previous instead, and render a plain
+         span when there is nowhere to go back to, so the control is disabled
+         rather than a link to a page that does not exist. #}
+      {% if page_obj.has_previous %}
+        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ querystring }}"
+           aria-label="Previous page">
+          {% include "pos/_icon.html" with name="chevron-left" cls="icon--sm" %}
+        </a>
+      {% else %}
+        <span class="page-link is-disabled" aria-disabled="true" aria-label="Previous page">
+          {% include "pos/_icon.html" with name="chevron-left" cls="icon--sm" %}
+        </span>
+      {% endif %}
 
       {% for number in page_obj.paginator.page_range %}
         {% if number == page_obj.number %}
@@ -31,11 +41,16 @@ pos.views._helpers.query_string) so paging keeps the current filter.
         {% endif %}
       {% endfor %}
 
-      <a class="page-link {% if not page_obj.has_next %}is-disabled{% endif %}"
-         href="?page={{ page_obj.next_page_number|default:page_obj.paginator.num_pages }}{{ querystring }}"
-         aria-label="Next page">
-        {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
-      </a>
+      {% if page_obj.has_next %}
+        <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ querystring }}"
+           aria-label="Next page">
+          {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+        </a>
+      {% else %}
+        <span class="page-link is-disabled" aria-disabled="true" aria-label="Next page">
+          {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+        </span>
+      {% endif %}
     </div>
   {% endif %}
 </div>

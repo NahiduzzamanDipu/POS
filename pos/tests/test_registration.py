@@ -1,133 +1,73 @@
-"""Self-service registration from the login page."""
+"""Public self-registration must not exist.
+
+The original version of this file exercised a sign-up flow reachable from the
+login page. That flow was removed deliberately: accounts are created by an
+administrator, and a POS terminal must never let a visitor mint themselves an
+account.
+
+These tests therefore assert the *absence* of that feature. They are kept as
+tests rather than deleted so the removal cannot be quietly undone -- if anyone
+reintroduces a register route, a sign-up link, or a role selector on the login
+form, this file fails.
+"""
 
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
-from pos.models import ActivityLog, Role, StoreSetting, User
+from pos.models import Role, User
 
 from .factories import PASSWORD, make_user, set_tax
 
 
-def payload(**overrides):
-    data = {
-        'username': 'newhire',
-        'first_name': 'New',
-        'last_name': 'Hire',
-        'email': 'new.hire@example.com',
-        'phone': '+8801811000009',
-        'password1': 'Str0ngPass!23',
-        'password2': 'Str0ngPass!23',
-    }
-    data.update(overrides)
-    return data
-
-
-class RegistrationTests(TestCase):
+class NoPublicRegistrationTests(TestCase):
     def setUp(self):
-        set_tax('5.00', allow_self_registration=True, require_registration_approval=True)
+        set_tax('0.00')
 
-    def test_login_page_offers_registration_when_enabled(self):
+    def test_there_is_no_register_route(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse('pos:register')
+
+    def test_common_signup_paths_are_not_served(self):
+        """Nothing answers at the usual sign-up addresses."""
+        for path in ['/register/', '/signup/', '/accounts/register/']:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(
+                    response.status_code, 404,
+                    f'{path} should not exist, got {response.status_code}',
+                )
+
+    def test_login_page_offers_no_way_to_sign_up(self):
         response = self.client.get(reverse('pos:login'))
-        self.assertContains(response, reverse('pos:register'))
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8', 'ignore').lower()
+        for phrase in ['sign up', 'create account', 'create an account']:
+            self.assertNotIn(phrase, body, f'login page must not offer "{phrase}"')
 
-    def test_login_page_hides_registration_when_disabled(self):
-        set_tax('5.00', allow_self_registration=False)
+    def test_login_page_does_not_ask_for_a_role(self):
+        """The role is read from the account, never chosen by the person signing in."""
         response = self.client.get(reverse('pos:login'))
-        self.assertNotContains(response, reverse('pos:register'))
+        body = response.content.decode('utf-8', 'ignore')
+        self.assertNotIn('name="role"', body)
 
-    def test_registration_creates_a_pending_cashier(self):
-        self.client.post(reverse('pos:register'), payload())
-        user = User.objects.get(username='newhire')
-        self.assertEqual(user.role, Role.CASHIER)
-        self.assertFalse(user.is_active)          # awaiting approval
-        self.assertFalse(user.is_staff)
-        self.assertFalse(user.is_superuser)
-        self.assertTrue(ActivityLog.objects.filter(action='REGISTERED').exists())
+    def test_login_asks_for_email_or_phone_not_username(self):
+        response = self.client.get(reverse('pos:login'))
+        self.assertContains(response, 'Email or Phone')
 
-    def test_a_pending_account_cannot_sign_in_yet(self):
-        self.client.post(reverse('pos:register'), payload())
-        response = self.client.post(
-            reverse('pos:login'), {'username': 'newhire', 'password': 'Str0ngPass!23'}
-        )
-        self.assertFalse(response.context['user'].is_authenticated)
-
-    def test_approval_by_a_manager_lets_the_account_in(self):
-        self.client.post(reverse('pos:register'), payload())
-        manager = make_user('mgr', Role.MANAGER)
-        self.client.force_login(manager)
-        self.client.post(
-            reverse('pos:employee_toggle', args=[User.objects.get(username='newhire').pk])
-        )
-        self.client.logout()
-
+    def test_role_comes_from_the_database_on_sign_in(self):
+        """Whatever the browser posts, the stored role is the one that applies."""
+        cashier = make_user('till01', Role.CASHIER, email='till01@example.com')
         response = self.client.post(
             reverse('pos:login'),
-            {'username': 'newhire', 'password': 'Str0ngPass!23'},
-            follow=True,
+            {'username': 'till01@example.com', 'password': PASSWORD, 'role': Role.ADMIN},
         )
-        self.assertTrue(response.context['user'].is_authenticated)
+        self.assertEqual(response.status_code, 302)
+        cashier.refresh_from_db()
+        self.assertEqual(cashier.role, Role.CASHIER)
+        self.assertFalse(cashier.is_superuser)
 
-    def test_instant_access_when_approval_is_not_required(self):
-        set_tax('5.00', allow_self_registration=True, require_registration_approval=False)
-        response = self.client.post(reverse('pos:register'), payload(), follow=True)
-        self.assertTrue(response.context['user'].is_authenticated)
-        self.assertTrue(User.objects.get(username='newhire').is_active)
-
-    def test_a_registrant_cannot_choose_a_privileged_role(self):
-        """The role field is never read from the submitted data."""
-        self.client.post(
-            reverse('pos:register'),
-            payload(role=Role.ADMIN, is_staff='on', is_superuser='on', is_active='on'),
-        )
-        user = User.objects.get(username='newhire')
-        self.assertEqual(user.role, Role.CASHIER)
-        self.assertFalse(user.is_superuser)
-        self.assertFalse(user.is_staff)
-        self.assertFalse(user.is_active)
-
-    def test_duplicate_username_is_rejected(self):
-        make_user('newhire', Role.CASHIER)
-        self.client.post(reverse('pos:register'), payload())
-        self.assertEqual(User.objects.filter(username='newhire').count(), 1)
-
-    def test_duplicate_email_is_rejected(self):
-        make_user('other', Role.CASHIER, email='new.hire@example.com')
-        response = self.client.post(reverse('pos:register'), payload())
-        self.assertContains(response, 'already uses this email')
-        self.assertFalse(User.objects.filter(username='newhire').exists())
-
-    def test_mismatched_passwords_are_rejected(self):
-        self.client.post(reverse('pos:register'), payload(password2='Different!23'))
-        self.assertFalse(User.objects.filter(username='newhire').exists())
-
-    def test_weak_password_is_rejected(self):
-        response = self.client.post(
-            reverse('pos:register'), payload(password1='12345678', password2='12345678')
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(User.objects.filter(username='newhire').exists())
-
-    def test_password_is_stored_hashed(self):
-        self.client.post(reverse('pos:register'), payload())
-        user = User.objects.get(username='newhire')
-        self.assertNotEqual(user.password, 'Str0ngPass!23')
-        self.assertTrue(user.check_password('Str0ngPass!23'))
-
-    def test_registration_is_blocked_when_switched_off(self):
-        set_tax('5.00', allow_self_registration=False)
-        response = self.client.post(reverse('pos:register'), payload(), follow=True)
-        self.assertFalse(User.objects.filter(username='newhire').exists())
-        self.assertContains(response, 'turned off')
-
-    def test_signed_in_users_are_sent_to_the_dashboard(self):
-        self.client.force_login(make_user('someone', Role.CASHIER))
-        response = self.client.get(reverse('pos:register'))
-        self.assertRedirects(response, reverse('pos:dashboard'))
-
-    def test_pending_accounts_are_listed_for_approval(self):
-        self.client.post(reverse('pos:register'), payload())
-        self.client.force_login(make_user('boss', Role.ADMIN))
-        response = self.client.get(reverse('pos:employee_list'), {'status': 'pending'})
-        self.assertContains(response, 'newhire')
-        self.assertContains(response, 'Awaiting approval')
-        self.assertEqual(response.context['pending_count'], 1)
+    def test_an_anonymous_visitor_cannot_create_a_user(self):
+        before = User.objects.count()
+        self.client.post('/register/', {'username': 'intruder',
+                                        'password1': 'x', 'password2': 'x'})
+        self.assertEqual(User.objects.count(), before)

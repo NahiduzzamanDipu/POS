@@ -1,0 +1,116 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% comment %}
+Money in against money out.
+
+Inflow is what customers actually paid, net of change handed back. Outflow is
+refunds plus purchase orders. Net is the difference, and it can legitimately
+be negative on a day with a large restock.
+{% endcomment %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+{% include "pos/_date_filter.html" %}
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat__label">Cash in</div>
+    <div class="stat__value">{{ currency }} {{ flow.inflow|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">collected from sales</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Cash out</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.outflow|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">refunds + purchases</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Net cash flow</div>
+    <div class="stat__value">{{ currency }} {{ flow.net|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">in &minus; out</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Days in range</div>
+    <div class="stat__value stat__value--plain">{{ daily|length }}</div>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat__label">Sales takings</div>
+    <div class="stat__value stat__value--plain">{{ currency }} {{ flow.sales|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Refunds paid</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.refunds|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Purchases paid</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.purchases|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Range</div>
+    <div class="stat__value stat__value--plain" style="font-size:15px">
+      {{ start|date:"d M Y" }}<br>{{ end|date:"d M Y" }}
+    </div>
+  </div>
+</div>
+
+{% include "pos/_chart.html" %}
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card__head"><h2>Cash in by payment method</h2></div>
+    {% if flow.by_method %}
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Method</th><th class="num">Sales</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          {% for row in flow.by_method %}
+            <tr>
+              <td>{{ row.payment_method }}</td>
+              <td class="num">{{ row.count|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.amount|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      {% include "pos/_empty.html" with title="No payments in range" icon="wallet" %}
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Daily movement</h2></div>
+    {% if daily %}
+      <div class="table-wrap"><table class="data">
+        <thead>
+          <tr><th>Date</th><th class="num">In</th><th class="num">Out</th><th class="num">Net</th></tr>
+        </thead>
+        <tbody>
+          {% for row in daily %}
+            {# Quiet days are kept in `daily` so the chart has no gaps, but
+               listing 365 empty rows would bury the days that moved. #}
+            {% if row.moved %}
+              <tr>
+                <td>{{ row.day|date:"d M Y" }}</td>
+                <td class="num">{{ currency }} {{ row.inflow|floatformat:2|intcomma }}</td>
+                <td class="num muted">{{ currency }} {{ row.outflow|floatformat:2|intcomma }}</td>
+                <td class="num"><strong>{{ currency }} {{ row.net|floatformat:2|intcomma }}</strong></td>
+              </tr>
+            {% endif %}
+          {% empty %}
+            <tr><td colspan="4" class="muted">No movement in this range.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      {% include "pos/_empty.html" with title="No movement in this range" hint="Widen the dates." icon="wallet" %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

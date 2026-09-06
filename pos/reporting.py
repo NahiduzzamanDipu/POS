@@ -525,10 +525,18 @@ def cash_flow_by_day(start, end):
     rows = []
     day = start
     while day <= end:
+        inflow = collected.get(day, ZERO)
+        outflow = buys.get(day, ZERO) + refunds.get(day, ZERO)
         rows.append({
             'day': day,
-            'inflow': collected.get(day, ZERO),
-            'outflow': buys.get(day, ZERO) + refunds.get(day, ZERO),
+            'inflow': inflow,
+            'outflow': outflow,
+            # Carried here rather than derived in the template: outflow is a
+            # positive number, so a template doing inflow + outflow would
+            # report the wrong sign, and templates should not be doing
+            # arithmetic on money in the first place.
+            'net': inflow - outflow,
+            'moved': bool(inflow or outflow),
         })
         day += timedelta(days=1)
     return rows

@@ -136,6 +136,7 @@ REPORT_LINKS = [
     ('Supplier Report', 'pos:report_suppliers', 'i-truck'),
     ('Cash Flow', 'pos:report_cashflow', 'i-wallet'),
     ('User Wise Collection', 'pos:report_collections', 'i-badge-user'),
+    ('Profits', 'pos:report_profit', 'i-wallet'),
     ('Customer Report', 'pos:report_customers', 'i-users'),
 ]
 
