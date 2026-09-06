@@ -527,6 +527,19 @@ svg { flex: none; }
 .stat__value--sm { font-size: 17px; }
 .stat__meta { font-size: 12px; color: var(--text-soft); margin-top: 1px; }
 
+/* Tiles authored without an icon (several report pages) still read as one
+   column: label above value above meta, rather than three flex siblings. */
+.stat { flex-wrap: wrap; }
+.stat > .stat__label,
+.stat > .stat__value,
+.stat > .stat__meta { flex: 1 0 100%; }
+
+/* Value tone modifiers, for a figure that is itself a warning or a caution. */
+.stat__value--plain { color: var(--text); }
+.stat__value--warn  { color: var(--warning); }
+.stat__value--danger { color: var(--danger); }
+.stat__value--success { color: var(--success); }
+
 .section-title { font-size: 15px; font-weight: 600; margin-bottom: var(--sp-3); }
 
 /* ------------------------------------------------------ 8 tables & badges */
@@ -1252,6 +1265,20 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface-alt); padding: 8px;
 }
+
+/* The 403 / 404 / 500 pages, which stand alone outside the app shell. */
+.error-page {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: var(--sp-6);
+  text-align: center;
+}
+.error-page__code {
+  font-size: 68px; font-weight: 700; line-height: 1;
+  color: var(--brand); letter-spacing: -.04em;
+}
+.error-page h1 { font-size: 23px; margin: var(--sp-3) 0 var(--sp-2); }
+.error-page p { color: var(--text-muted); margin: 0 0 var(--sp-6); }
 
 /* -------------------------------------------------- 16 responsive & print */
 @media (max-width: 1280px) {

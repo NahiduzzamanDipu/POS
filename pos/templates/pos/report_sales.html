@@ -9,7 +9,7 @@ products cannot distort them. "Collected" is cash actually kept: tendered
 minus change handed back.
 {% endcomment %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
 {% endblock %}
 
@@ -20,46 +20,70 @@ minus change handed back.
 
 <div class="stat-grid">
   <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Total sales</div>
     <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ days }} day{{ days|pluralize }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Transactions</div>
     <div class="stat__value stat__value--plain">{{ totals.transactions|intcomma }}</div>
     <div class="stat__meta">completed sales</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Items sold</div>
     <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="activity" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Average transaction</div>
     <div class="stat__value">{{ currency }} {{ average|floatformat:2|intcomma }}</div>
   </div>
 </div>
+</div>
 
 <div class="stat-grid">
-  <div class="stat">
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="tag" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Discounts given</div>
     <div class="stat__value stat__value--warn">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</div>
     <div class="stat__meta">product + customer</div>
   </div>
+</div>
   <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="cash" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Collected</div>
     <div class="stat__value">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</div>
     <div class="stat__meta">net of change given</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="rotate" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Refunded</div>
     <div class="stat__value stat__value--warn">{{ currency }} {{ totals.refunded|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ returns.count|intcomma }} return{{ returns.count|pluralize }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Net revenue</div>
     <div class="stat__value">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</div>
     <div class="stat__meta">after refunds</div>
   </div>
+</div>
 </div>
 
 {% include "pos/_chart.html" %}
@@ -109,7 +133,7 @@ minus change handed back.
 <section class="card">
   <div class="card__head">
     <h2>Sales by employee</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
   </div>
   {% if by_cashier %}

@@ -9,7 +9,7 @@ their products sold for. Stock value is held at cost, so the two columns are
 directly comparable.
 {% endcomment %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
 {% endblock %}
 
@@ -44,26 +44,38 @@ directly comparable.
 </form>
 
 <div class="stat-grid">
-  <div class="stat">
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="truck" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Suppliers</div>
     <div class="stat__value stat__value--plain">{{ totals.suppliers|intcomma }}</div>
     <div class="stat__meta">{{ totals.active|intcomma }} active</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="inbox" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Purchase spend</div>
     <div class="stat__value stat__value--warn">{{ currency }} {{ totals.spend|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ totals.orders|intcomma }} order{{ totals.orders|pluralize }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Revenue from their goods</div>
     <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ totals.sold_units|intcomma }} unit{{ totals.sold_units|pluralize }} sold</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Stock value held</div>
     <div class="stat__value">{{ currency }} {{ totals.stock_value|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ totals.products|intcomma }} product{{ totals.products|pluralize }} at cost</div>
   </div>
+</div>
 </div>
 
 {% include "pos/_chart.html" %}
@@ -71,7 +83,7 @@ directly comparable.
 <section class="card">
   <div class="card__head">
     <h2>Suppliers</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
   </div>
 

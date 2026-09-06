@@ -1,18 +1,39 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn btn--ghost" href="?from={{ start|date:'Y-m-d' }}&to={{ end|date:'Y-m-d' }}&category={{ selected_category }}&export=csv">Export CSV</a>
+{% comment %}
+What sold, what it earned and what it made.
+
+Cost and profit come from the cost captured on each sale line, not from the
+product's present cost_price, so repricing a product cannot rewrite a margin
+already booked. Lines with no captured cost show a dash rather than a guess.
+{% endcomment %}
+
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}
+    &middot; {{ totals.products|intcomma }} product{{ totals.products|pluralize }} sold
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{{ export_href }}">
+    {% include "pos/_icon.html" with name="download" %} Export CSV
+  </a>
 {% endblock %}
 
 {% block content %}
 {% include "pos/_report_nav.html" %}
 
-<form class="toolbar" method="get">
-  <div class="field"><label for="from">From</label>
-    <input type="date" id="from" name="from" class="input" value="{{ start|date:'Y-m-d' }}"></div>
-  <div class="field"><label for="to">To</label>
-    <input type="date" id="to" name="to" class="input" value="{{ end|date:'Y-m-d' }}"></div>
+<form class="filters" method="get">
+  <div class="field">
+    <label for="from">From Date</label>
+    <input type="date" id="from" name="from" class="input" value="{{ start|date:'Y-m-d' }}">
+  </div>
+  <div class="field">
+    <label for="to">To Date</label>
+    <input type="date" id="to" name="to" class="input" value="{{ end|date:'Y-m-d' }}">
+  </div>
   <div class="field">
     <label for="category">Category</label>
     <select id="category" name="category" class="select">
@@ -22,58 +43,146 @@
       {% endfor %}
     </select>
   </div>
-  <button type="submit" class="btn">Generate Report</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Apply Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:report_products' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Products sold</div>
-    <div class="stat__value stat__value--plain">{{ totals.products }}</div></div>
-  <div class="stat"><div class="stat__label">Units sold</div>
-    <div class="stat__value stat__value--plain">{{ totals.units|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Product discounts</div>
-    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Net revenue</div>
-    <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div></div>
+  <div class="stat stat--neutral">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="box" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Products sold</div>
+      <div class="stat__value">{{ totals.products|intcomma }}</div>
+      <div class="stat__meta">Distinct lines in this range</div>
+    </div>
+  </div>
+  <div class="stat stat--info">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Units sold</div>
+      <div class="stat__value">{{ totals.units|intcomma }}</div>
+      <div class="stat__meta">Total quantity across all lines</div>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Net revenue</div>
+      <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">
+        after {{ currency }} {{ totals.discount|floatformat:2|intcomma }} of product discounts
+      </div>
+    </div>
+  </div>
+  <div class="stat stat--success">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Gross profit</div>
+      <div class="stat__value">{{ currency }} {{ totals.profit|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">
+        {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}% margin on costed sales
+        {% else %}no cost data in this range{% endif %}
+      </div>
+    </div>
+  </div>
 </div>
+
+{% if not totals.complete and totals.units %}
+  <div class="alert alert--warning" style="margin-bottom:20px" role="status">
+    {% include "pos/_icon.html" with name="alert-triangle" %}
+    <div>
+      Some lines in this range were sold before the system began recording the
+      cost price on each sale. Their cost and profit show as
+      &mdash;, and they are excluded from the profit total, rather than being
+      valued at a cost the business never paid.
+      <a href="{% url 'pos:report_profit' %}?from={{ start|date:'Y-m-d' }}&amp;to={{ end|date:'Y-m-d' }}">See the Profits report</a>
+      for the exact shortfall.
+    </div>
+  </div>
+{% endif %}
 
 {% include "pos/_chart.html" %}
 
-<section class="card" style="margin-bottom:24px">
+<section class="card" style="margin:24px 0">
   <div class="card__head">
     <h2>Product performance</h2>
-    <div class="topbar__spacer"></div>
-    <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
+    <div class="spacer"></div>
+    <span class="muted small">Ranked by units sold</span>
   </div>
   <div class="card__body card__body--flush">
-    <div class="table-wrap"><table class="data">
-      <thead><tr><th>Product</th><th class="num">Units Sold</th><th class="num">Transactions</th>
-                 <th class="num">Gross</th><th class="num">Product Discount</th>
-                 <th class="num">Net Revenue</th></tr></thead>
-      <tbody>
-        {% for row in page_obj %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
           <tr>
-            <td>{{ row.product_name }}</td>
-            <td class="num"><strong>{{ row.units }}</strong></td>
-            <td class="num">{{ row.transactions }}</td>
-            <td class="num muted">{{ currency }} {{ row.gross|floatformat:2|intcomma }}</td>
-            <td class="num">{% if row.discount %}− {{ currency }} {{ row.discount|floatformat:2|intcomma }}{% else %}<span class="muted">—</span>{% endif %}</td>
-            <td class="num"><strong>{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</strong></td>
+            <th>Product</th>
+            <th style="width:96px">Share</th>
+            <th class="num">Units Sold</th>
+            <th class="num">Transactions</th>
+            <th class="num">Net Revenue</th>
+            <th class="num">Cost</th>
+            <th class="num">Profit</th>
+            <th class="num">Margin</th>
           </tr>
-        {% empty %}
-          <tr><td colspan="6"><div class="empty"><strong>No sales in this range</strong>Try widening the dates.</div></td></tr>
-        {% endfor %}
-      </tbody>
-      {% if rows %}
-        <tfoot><tr>
-          <th>Total</th>
-          <th class="num">{{ totals.units|intcomma }}</th>
-          <th class="num"></th>
-          <th class="num"></th>
-          <th class="num">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</th>
-          <th class="num">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</th>
-        </tr></tfoot>
-      {% endif %}
-    </table></div>
+        </thead>
+        <tbody>
+          {% for row in page_obj %}
+            <tr>
+              <td class="strong">{{ row.product_name }}</td>
+              <td>
+                <div class="meter">
+                  <div class="meter__fill meter__fill--success" style="width:{{ row.share }}%"></div>
+                </div>
+              </td>
+              <td class="num strong">{{ row.units|intcomma }}</td>
+              <td class="num muted">{{ row.transactions|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+              <td class="num muted">
+                {% if row.has_cost %}{{ currency }} {{ row.cost|floatformat:2|intcomma }}
+                {% else %}<span class="soft" title="Sold before cost was recorded">&mdash;</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.profit is not None %}
+                  <strong>{{ currency }} {{ row.profit|floatformat:2|intcomma }}</strong>
+                {% else %}<span class="soft">&mdash;</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.margin is not None %}
+                  <span class="badge {% if row.margin >= 20 %}badge--success{% elif row.margin > 0 %}badge--warn{% else %}badge--danger{% endif %}">
+                    {{ row.margin|floatformat:2 }}%
+                  </span>
+                {% else %}<span class="soft">&mdash;</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8">
+              {% include "pos/_empty.html" with title="No sales in this range" hint="Widen the date range, or clear the category filter." icon="chart" %}
+            </td></tr>
+          {% endfor %}
+        </tbody>
+        {% if rows %}
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              <td></td>
+              <td class="num">{{ totals.units|intcomma }}</td>
+              <td class="num"></td>
+              <td class="num">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</td>
+              <td class="num">{{ currency }} {{ totals.cost|floatformat:2|intcomma }}</td>
+              <td class="num">{{ currency }} {{ totals.profit|floatformat:2|intcomma }}</td>
+              <td class="num">
+                {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}%{% else %}&mdash;{% endif %}
+              </td>
+            </tr>
+          </tfoot>
+        {% endif %}
+      </table>
+    </div>
     {% include "pos/_pagination.html" %}
   </div>
 </section>
@@ -82,31 +191,55 @@
   <section class="card">
     <div class="card__head"><h2>Sales by category</h2></div>
     <div class="card__body card__body--flush">
-      <div class="table-wrap"><table class="data">
-        <thead><tr><th>Category</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
-        <tbody>
-          {% for row in by_category %}
-            <tr><td>{{ row.product__category__name }}</td><td class="num">{{ row.units }}</td>
-                <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td></tr>
-          {% empty %}<tr><td colspan="3"><div class="empty">No sales in this range.</div></td></tr>{% endfor %}
-        </tbody>
-      </table></div>
+      <div class="table-wrap">
+        <table class="data data--tight">
+          <thead><tr><th>Category</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
+          <tbody>
+            {% for row in by_category %}
+              <tr>
+                <td><span class="badge">{{ row.product__category__name|default:"Uncategorised" }}</span></td>
+                <td class="num">{{ row.units|intcomma }}</td>
+                <td class="num strong">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3">
+                {% include "pos/_empty.html" with title="No sales in this range" icon="tag" %}
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
   <section class="card">
-    <div class="card__head"><h2>Never sold in this period</h2></div>
+    <div class="card__head">
+      <h2>Never sold in this period</h2>
+      {% if never_sold_count %}
+        <span class="badge badge--warn">{{ never_sold_count|intcomma }}</span>
+      {% endif %}
+    </div>
     <div class="card__body card__body--flush">
-      <div class="table-wrap"><table class="data">
-        <thead><tr><th>Product</th><th>Category</th><th class="num">In stock</th></tr></thead>
-        <tbody>
-          {% for product in never_sold %}
-            <tr><td><a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a></td>
+      <div class="table-wrap">
+        <table class="data data--tight">
+          <thead><tr><th>Product</th><th>Category</th><th class="num">In stock</th></tr></thead>
+          <tbody>
+            {% for product in never_sold %}
+              <tr>
+                <td>
+                  <a class="media-cell__title" href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                </td>
                 <td class="muted">{{ product.category.name }}</td>
-                <td class="num">{{ product.stock_quantity }}</td></tr>
-          {% empty %}<tr><td colspan="3"><div class="empty">Every product sold at least once.</div></td></tr>{% endfor %}
-        </tbody>
-      </table></div>
+                <td class="num">{{ product.stock_quantity|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3">
+                {% include "pos/_empty.html" with title="Everything sold at least once" icon="check-circle" %}
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </div>

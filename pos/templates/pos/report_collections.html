@@ -9,7 +9,7 @@ it is the figure a till reconciliation should match. Usernames are never
 shown; staff are identified by name and employee ID.
 {% endcomment %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
 {% endblock %}
 
@@ -42,23 +42,35 @@ shown; staff are identified by name and employee ID.
 
 <div class="stat-grid">
   <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Total collected</div>
     <div class="stat__value">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</div>
     <div class="stat__meta">net of change given</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Transactions</div>
     <div class="stat__value stat__value--plain">{{ totals.transactions|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="badge-user" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">People</div>
     <div class="stat__value stat__value--plain">{{ totals.people|intcomma }}</div>
     <div class="stat__meta">took at least one sale</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Items sold</div>
     <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div>
   </div>
+</div>
 </div>
 
 {% include "pos/_chart.html" %}
@@ -66,7 +78,7 @@ shown; staff are identified by name and employee ID.
 <section class="card">
   <div class="card__head">
     <h2>Collection by employee</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
   </div>
 

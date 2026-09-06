@@ -54,62 +54,92 @@ class EmployeeIdTests(TestCase):
         self.assertEqual(len(ids), 25)
 
 
-class RegistrationEmployeeIdTests(TestCase):
-    """Section 20: the employee never types an ID."""
+class AdminCreatedEmployeeIdTests(TestCase):
+    """Section 20: the employee never types an ID, and never sees a username.
+
+    Accounts are created by an administrator under Employees -- there is no
+    public sign-up -- so that is the flow these exercise.
+    """
 
     def setUp(self):
-        set_tax('5.00', allow_self_registration=True, require_registration_approval=True)
+        set_tax('5.00')
+        self.client.force_login(make_user('boss', Role.ADMIN))
 
     def _payload(self, **extra):
         data = {
-            'username': 'newhire',
             'first_name': 'New',
             'last_name': 'Hire',
             'email': 'new.hire@example.com',
             'phone': '01811000009',
+            'position': 'Cashier',
+            'role': Role.CASHIER,
+            'is_active': 'on',
             'password1': 'Str0ngPass!23',
             'password2': 'Str0ngPass!23',
         }
         data.update(extra)
         return data
 
-    def test_the_registration_form_has_no_employee_id_field(self):
-        response = self.client.get(reverse('pos:register'))
-        self.assertNotContains(response, 'name="employee_id"')
-
-    def test_registering_generates_an_id(self):
-        self.client.post(reverse('pos:register'), self._payload())
-        user = User.objects.get(username='newhire')
-        self.assertTrue(user.employee_id.startswith('EMP-'))
-
-    def test_a_submitted_employee_id_is_ignored(self):
-        self.client.post(reverse('pos:register'), self._payload(employee_id='EMP-999'))
-        user = User.objects.get(username='newhire')
-        self.assertNotEqual(user.employee_id, 'EMP-999')
-
-    def test_the_admin_employee_form_has_no_employee_id_field(self):
-        self.client.force_login(make_user('boss', Role.ADMIN))
+    def test_the_employee_form_has_no_employee_id_field(self):
         response = self.client.get(reverse('pos:employee_create'))
         self.assertNotContains(response, 'name="employee_id"')
 
-    def test_an_admin_created_employee_also_gets_an_id(self):
-        self.client.force_login(make_user('boss', Role.ADMIN))
-        self.client.post(reverse('pos:employee_create'), {
-            'username': 'created', 'first_name': 'Cre', 'last_name': 'Ated',
-            'email': 'c@example.com', 'phone': '', 'position': 'Cashier',
-            'role': Role.CASHIER, 'is_active': 'on',
-            'password1': 'Str0ngPass!23', 'password2': 'Str0ngPass!23',
-        })
-        self.assertTrue(User.objects.get(username='created').employee_id.startswith('EMP-'))
+    def test_the_employee_form_has_no_username_field(self):
+        """Staff sign in with an email or phone; the username is internal."""
+        response = self.client.get(reverse('pos:employee_create'))
+        self.assertNotContains(response, 'name="username"')
 
-    def test_two_registrations_get_different_ids(self):
-        self.client.post(reverse('pos:register'), self._payload())
-        self.client.post(reverse('pos:register'), self._payload(
-            username='second', email='second@example.com', phone='01811000010'))
-        ids = list(User.objects.filter(
-            username__in=['newhire', 'second']
-        ).values_list('employee_id', flat=True))
+    def test_creating_an_employee_generates_an_id(self):
+        self.client.post(reverse('pos:employee_create'), self._payload())
+        user = User.objects.get(email='new.hire@example.com')
+        self.assertTrue(user.employee_id.startswith('EMP-'))
+
+    def test_a_username_is_derived_from_the_email(self):
+        self.client.post(reverse('pos:employee_create'), self._payload())
+        user = User.objects.get(email='new.hire@example.com')
+        self.assertTrue(user.username)
+        self.assertNotIn('@', user.username)
+
+    def test_a_submitted_employee_id_is_ignored(self):
+        self.client.post(
+            reverse('pos:employee_create'), self._payload(employee_id='EMP-999')
+        )
+        user = User.objects.get(email='new.hire@example.com')
+        self.assertNotEqual(user.employee_id, 'EMP-999')
+
+    def test_a_submitted_username_is_ignored(self):
+        self.client.post(
+            reverse('pos:employee_create'), self._payload(username='chosen.handle')
+        )
+        user = User.objects.get(email='new.hire@example.com')
+        self.assertNotEqual(user.username, 'chosen.handle')
+
+    def test_two_employees_get_different_ids(self):
+        self.client.post(reverse('pos:employee_create'), self._payload())
+        self.client.post(reverse('pos:employee_create'), self._payload(
+            email='second@example.com', phone='01811000010'))
+        ids = list(
+            User.objects.filter(email__in=['new.hire@example.com', 'second@example.com'])
+            .values_list('employee_id', flat=True)
+        )
+        self.assertEqual(len(ids), 2)
         self.assertEqual(len(set(ids)), 2)
+
+    def test_a_duplicate_email_is_refused(self):
+        """The email is the sign-in identifier, so it has to be unique."""
+        self.client.post(reverse('pos:employee_create'), self._payload())
+        response = self.client.post(reverse('pos:employee_create'), self._payload(
+            phone='01811000011'))
+        self.assertContains(response, 'already uses this email')
+        self.assertEqual(User.objects.filter(email='new.hire@example.com').count(), 1)
+
+    def test_a_duplicate_phone_is_refused(self):
+        """A shared number would make phone sign-in ambiguous."""
+        self.client.post(reverse('pos:employee_create'), self._payload())
+        response = self.client.post(reverse('pos:employee_create'), self._payload(
+            email='third@example.com'))
+        self.assertContains(response, 'already uses this phone')
+        self.assertFalse(User.objects.filter(email='third@example.com').exists())
 
 
 class ConcurrentEmployeeIdTests(TransactionTestCase):

@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   {% if rows %}
     <a class="btn btn--ghost" href="?from_date={{ start|date:'Y-m-d' }}&to_date={{ end|date:'Y-m-d' }}&customer_number={{ filtered_number }}&export=csv">Export CSV</a>
   {% endif %}
@@ -10,9 +10,9 @@
 {% block content %}
 {% include "pos/_report_nav.html" %}
 
-<form class="toolbar" method="get">
+<form class="filters" method="get">
   {% for field in form %}
-    <div class="field {% if field.name == 'customer_number' %}toolbar__grow{% endif %}">
+    <div class="field {% if field.name == 'customer_number' %}filters__grow{% endif %}">
       <label for="{{ field.id_for_label }}">{{ field.label }}</label>
       {{ field }}
       {{ field.errors }}
@@ -30,16 +30,41 @@
   </h2>
 
   <div class="stat-grid">
-    <div class="stat"><div class="stat__label">Customers</div>
-      <div class="stat__value stat__value--plain">{{ totals.customers|intcomma }}</div></div>
-    <div class="stat"><div class="stat__label">Orders</div>
-      <div class="stat__value stat__value--plain">{{ totals.orders|intcomma }}</div></div>
-    <div class="stat"><div class="stat__label">Items</div>
-      <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div></div>
-    <div class="stat"><div class="stat__label">Total Shopping</div>
-      <div class="stat__value">{{ currency }} {{ totals.total|floatformat:2|intcomma }}</div></div>
-    <div class="stat"><div class="stat__label">Net Purchase</div>
-      <div class="stat__value">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</div></div>
+    <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="users" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Customers</div>
+    <div class="stat__value stat__value--plain">{{ totals.customers|intcomma }}</div>
+  </div>
+</div>
+    <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Orders</div>
+    <div class="stat__value stat__value--plain">{{ totals.orders|intcomma }}</div>
+  </div>
+</div>
+    <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Items</div>
+    <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div>
+  </div>
+</div>
+    <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="activity" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Total Shopping</div>
+    <div class="stat__value">{{ currency }} {{ totals.total|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+    <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="activity" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Net Purchase</div>
+    <div class="stat__value">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</div>
+  </div>
+</div>
   </div>
 
   {% include "pos/_chart.html" %}
@@ -47,7 +72,7 @@
   <section class="card">
     <div class="card__head">
       <h2>Customer Report</h2>
-      <div class="topbar__spacer"></div>
+      <div class="spacer"></div>
       <span class="muted small">Identified by customer number only.</span>
     </div>
     <div class="card__body card__body--flush">

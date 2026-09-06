@@ -13,12 +13,15 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import (
+    Case,
     Count,
     DecimalField,
     ExpressionWrapper,
     F,
+    IntegerField,
     Sum,
     Value,
+    When,
 )
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect, render
@@ -422,6 +425,27 @@ def profit_report(request):
     )
 
 
+def _product_totals(rows):
+    """Footer totals for Product Performance, including margin."""
+    revenue_costed = sum((r['revenue_costed'] for r in rows), ZERO)
+    cost = sum((r['cost'] for r in rows), ZERO)
+    profit = revenue_costed - cost if revenue_costed else ZERO
+    return {
+        'units': sum(r['units'] for r in rows),
+        'revenue': sum((r['revenue'] for r in rows), ZERO),
+        'discount': sum((r['discount'] for r in rows), ZERO),
+        'products': len(rows),
+        'cost': cost,
+        'profit': profit,
+        'margin': (
+            (profit / revenue_costed * 100).quantize(Decimal('0.01'))
+            if revenue_costed else None
+        ),
+        'units_costed': sum(r['units_costed'] for r in rows),
+        'complete': all(r['units'] == r['units_costed'] for r in rows),
+    }
+
+
 # ----------------------------------------------------- C product performance
 @require(REPORT_VIEW)
 def product_report(request):
@@ -458,9 +482,47 @@ def product_report(request):
                 Value(ZERO, output_field=DecimalField(max_digits=16, decimal_places=2)),
             ),
             transactions=Count('sale', distinct=True),
+            # Cost of what was sold, from the per-line snapshot. The default of
+            # zero deliberately does not guess at a missing cost; units_costed
+            # records how much of the quantity the total actually covers.
+            cost=Coalesce(
+                Sum(Case(
+                    When(unit_cost__isnull=False, then=F('unit_cost') * F('quantity')),
+                    default=Value(ZERO),
+                    output_field=DecimalField(max_digits=16, decimal_places=2),
+                )),
+                Value(ZERO, output_field=DecimalField(max_digits=16, decimal_places=2)),
+            ),
+            revenue_costed=Coalesce(
+                Sum(Case(
+                    When(unit_cost__isnull=False, then=F('subtotal')),
+                    default=Value(ZERO),
+                    output_field=DecimalField(max_digits=16, decimal_places=2),
+                )),
+                Value(ZERO, output_field=DecimalField(max_digits=16, decimal_places=2)),
+            ),
+            units_costed=Coalesce(
+                Sum(Case(
+                    When(unit_cost__isnull=False, then=F('quantity')),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )),
+                Value(0),
+            ),
         )
         .order_by('-units')
     )
+
+    # Profit and margin are only meaningful over the part of a product's sales
+    # whose cost is known, so they are computed against revenue_costed.
+    for row in rows:
+        costed = row['units_costed'] or 0
+        row['has_cost'] = bool(costed)
+        row['profit'] = row['revenue_costed'] - row['cost'] if costed else None
+        row['margin'] = (
+            (row['profit'] / row['revenue_costed'] * 100).quantize(Decimal('0.01'))
+            if costed and row['revenue_costed'] else None
+        )
 
     sold_ids = {row['product_id'] for row in rows}
     never_sold = Product.objects.active().exclude(pk__in=sold_ids).select_related('category')
@@ -469,10 +531,13 @@ def product_report(request):
         return csv_response(
             f'product-performance-{start}-to-{end}.csv',
             ['Product', 'Units sold', 'Transactions', 'Gross', 'Product discount',
-             'Net revenue'],
+             'Net revenue', 'Cost of goods sold', 'Profit', 'Margin %'],
             [
                 [r['product_name'], r['units'], r['transactions'], r['gross'],
-                 r['discount'], r['revenue']]
+                 r['discount'], r['revenue'],
+                 r['cost'] if r['has_cost'] else '',
+                 r['profit'] if r['profit'] is not None else '',
+                 r['margin'] if r['margin'] is not None else '']
                 for r in rows
             ],
         )
@@ -500,12 +565,7 @@ def product_report(request):
             'categories': Category.objects.filter(is_active=True),
             'selected_category': category_id,
             'export_href': _export_href(request),
-            'totals': {
-                'units': sum(r['units'] for r in rows),
-                'revenue': sum((r['revenue'] for r in rows), ZERO),
-                'discount': sum((r['discount'] for r in rows), ZERO),
-                'products': len(rows),
-            },
+            'totals': _product_totals(rows),
             'chart': charts.build_grouped_chart(
                 [
                     {'product': charts.shorten(r['product_name']),

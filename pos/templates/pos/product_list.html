@@ -109,7 +109,8 @@
               </th>
             {% endif %}
             <th>Product</th><th>SKU</th><th>Category</th>
-            <th class="num">Price</th><th class="num">Discount</th>
+            {% if 'product.price' in capabilities %}<th class="num">Cost Price</th>{% endif %}
+            <th class="num">Selling Price</th><th class="num">Discount</th>
             <th class="num">Final Price</th><th class="num">Stock</th><th>Status</th>
             <th class="num">Action</th>
           </tr>
@@ -134,6 +135,18 @@
               </td>
               <td class="nowrap muted">{{ product.sku }}</td>
               <td><span class="badge">{{ product.category.name }}</span></td>
+              {# Cost is what we paid the supplier: internal margin data, so it #}
+              {# is shown only to roles allowed to see and set pricing (BRL-4). #}
+              {% if 'product.price' in capabilities %}
+                <td class="num muted">
+                  {% if product.cost_price > 0 %}
+                    {{ currency }} {{ product.cost_price|floatformat:2|intcomma }}
+                  {% else %}
+                    {# No cost means no margin can be worked out for this line. #}
+                    <span class="badge badge--warn" title="Set a cost price so profit can be calculated">not set</span>
+                  {% endif %}
+                </td>
+              {% endif %}
               <td class="num">{{ currency }} {{ product.selling_price|floatformat:2|intcomma }}</td>
               <td class="num">
                 {% if product.discount_percent > 0 %}
@@ -167,7 +180,7 @@
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="10">
+            <tr><td colspan="{% if 'product.price' in capabilities %}11{% else %}10{% endif %}">
               {% include "pos/_empty.html" with title="No products found" hint="Adjust the filters, or add a product to the catalogue." icon="box" %}
             </td></tr>
           {% endfor %}

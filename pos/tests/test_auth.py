@@ -3,7 +3,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from pos.models import ActivityLog, Role
+from pos.models import ActivityLog, Role, User
 from pos.permissions import PRODUCT_PRICE, SETTINGS_MANAGE, capabilities_for, user_can
 
 from .factories import PASSWORD, make_product, make_user
@@ -16,7 +16,7 @@ class LoginTests(TestCase):
     def test_valid_credentials_sign_the_user_in(self):
         response = self.client.post(
             reverse('pos:login'),
-            {'username': 'cashier1', 'password': PASSWORD, 'role': Role.CASHIER},
+            {'username': 'cashier1', 'password': PASSWORD},
             follow=True,
         )
         self.assertEqual(response.status_code, 200)
@@ -31,14 +31,62 @@ class LoginTests(TestCase):
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertTrue(ActivityLog.objects.filter(action='LOGIN_FAILED').exists())
 
-    def test_role_selector_cannot_escalate_privileges(self):
-        """The mock-up's role dropdown is cosmetic; the stored role wins."""
-        response = self.client.post(
+    def test_the_login_screen_offers_no_role_selector(self):
+        """The role is read from the account, never chosen at the door."""
+        response = self.client.get(reverse('pos:login'))
+        self.assertNotContains(response, 'name="role"')
+        self.assertContains(response, 'Email or Phone')
+
+    def test_a_submitted_role_is_ignored_entirely(self):
+        """Posting a role must not escalate; the form has no such field."""
+        self.client.post(
             reverse('pos:login'),
             {'username': 'cashier1', 'password': PASSWORD, 'role': Role.ADMIN},
+            follow=True,
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, Role.CASHIER)
+
+    def test_signing_in_with_an_email_address(self):
+        self.user.email = 'till.one@odell.example'
+        self.user.save(update_fields=['email'])
+        response = self.client.post(
+            reverse('pos:login'),
+            {'username': 'TILL.ONE@odell.example', 'password': PASSWORD},
+            follow=True,
+        )
+        self.assertEqual(response.context['user'], self.user)
+
+    def test_signing_in_with_a_phone_number(self):
+        self.user.phone = '01712345678'
+        self.user.save(update_fields=['phone'])
+        response = self.client.post(
+            reverse('pos:login'),
+            {'username': '+8801712345678', 'password': PASSWORD},
+            follow=True,
+        )
+        self.assertEqual(response.context['user'], self.user)
+
+    def test_a_phone_shared_by_two_accounts_is_refused_clearly(self):
+        """Ambiguity must not silently pick an account."""
+        self.user.phone = '01712345678'
+        self.user.save(update_fields=['phone'])
+        twin = make_user('cashier2', Role.CASHIER)
+        User.objects.filter(pk=twin.pk).update(phone='01712345678')
+
+        response = self.client.post(
+            reverse('pos:login'), {'username': '01712345678', 'password': PASSWORD}
         )
         self.assertFalse(response.context['user'].is_authenticated)
-        self.assertContains(response, 'registered as Cashier')
+        self.assertContains(response, 'more than one account')
+
+    def test_there_is_no_public_registration(self):
+        from django.urls import NoReverseMatch
+
+        with self.assertRaises(NoReverseMatch):
+            reverse('pos:register')
+        response = self.client.get(reverse('pos:login'))
+        self.assertNotContains(response, '/register/')
 
     def test_inactive_account_cannot_sign_in(self):
         self.user.is_active = False

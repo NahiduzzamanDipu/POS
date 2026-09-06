@@ -87,7 +87,8 @@
           <tr>
             <th>Product</th><th>SKU</th><th>Category</th>
             <th class="num">In stock</th><th class="num">Minimum</th>
-            <th class="num">Stock value</th><th>Status</th><th class="num">Action</th>
+            {% if 'product.price' in capabilities %}<th class="num">Cost Price</th>{% endif %}
+            <th class="num">Cost Value</th><th>Status</th><th class="num">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -106,6 +107,17 @@
               <td><span class="badge">{{ product.category.name }}</span></td>
               <td class="num strong">{{ product.stock_quantity|intcomma }}</td>
               <td class="num muted">{{ product.min_stock_level }}</td>
+              {% if 'product.price' in capabilities %}
+                <td class="num muted">
+                  {% if product.cost_price > 0 %}
+                    {{ currency }} {{ product.cost_price|floatformat:2|intcomma }}
+                  {% else %}
+                    <span class="badge badge--warn" title="Set a cost price so stock can be valued">not set</span>
+                  {% endif %}
+                </td>
+              {% endif %}
+              {# Stock quantity x cost price -- what this shelf cost us, not #}
+              {# what it will sell for. #}
               <td class="num">{{ currency }} {{ product.stock_value|floatformat:2|intcomma }}</td>
               <td>
                 {% if product.stock_status == 'out' %}
@@ -131,7 +143,7 @@
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="8">
+            <tr><td colspan="{% if 'product.price' in capabilities %}9{% else %}8{% endif %}">
               {% include "pos/_empty.html" with title="Nothing to show" hint="No products match this filter." icon="layers" %}
             </td></tr>
           {% endfor %}

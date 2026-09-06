@@ -16,7 +16,7 @@ Two things this page is careful about:
     gross profit is never read as covering the whole period.
 {% endcomment %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost"
      href="?from={{ start|date:'Y-m-d' }}&to={{ end|date:'Y-m-d' }}&export=csv">Export CSV</a>
 {% endblock %}
@@ -29,55 +29,79 @@ Two things this page is careful about:
 {# --------------------------------------------------------- summary tiles #}
 <div class="stat-grid">
   <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Total revenue</div>
     <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
     <div class="stat__meta">{{ totals.units|intcomma }} item{{ totals.units|pluralize }} sold</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="inbox" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Total cost</div>
     <div class="stat__value stat__value--warn">{{ currency }} {{ totals.cost|floatformat:2|intcomma }}</div>
     <div class="stat__meta">cost of goods sold</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Gross profit</div>
     <div class="stat__value">
-      {{ currency }} {{ totals.profit|floatformat:2|intcomma }}
+    {{ currency }} {{ totals.profit|floatformat:2|intcomma }}
     </div>
     <div class="stat__meta">revenue &minus; cost</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="activity" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Profit margin</div>
     <div class="stat__value stat__value--plain">
-      {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}%{% else %}&mdash;{% endif %}
+    {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}%{% else %}&mdash;{% endif %}
     </div>
     <div class="stat__meta">
-      {% if totals.margin is not None %}on costed sales{% else %}no cost data in range{% endif %}
+    {% if totals.margin is not None %}on costed sales{% else %}no cost data in range{% endif %}
     </div>
   </div>
 </div>
+</div>
 
 <div class="stat-grid">
-  <div class="stat">
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Transactions</div>
     <div class="stat__value stat__value--plain">{{ transactions|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Items sold</div>
     <div class="stat__value stat__value--plain">{{ totals.units|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="box" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Products</div>
     <div class="stat__value stat__value--plain">{{ totals.products|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="calendar" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Days in range</div>
     <div class="stat__value stat__value--plain">{{ days }}</div>
   </div>
 </div>
+</div>
 
 {# ------------------------------------------------- disclosure, if needed #}
 {% if not totals.complete %}
-  <div class="alert alert--warn" role="status">
+  <div class="alert alert--warning" role="status">
     <div>
       <strong>{{ totals.units_unknown|intcomma }} of {{ totals.units|intcomma }} items sold have no recorded cost.</strong>
       They were sold before the system began storing the cost price on each
@@ -101,7 +125,7 @@ Two things this page is careful about:
 <section class="card">
   <div class="card__head">
     <h2>Profit by product</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
   </div>
 

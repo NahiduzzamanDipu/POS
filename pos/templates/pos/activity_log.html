@@ -1,8 +1,8 @@
 {% extends "pos/base.html" %}
 
 {% block content %}
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="action">Action</label>
     <input type="search" id="action" name="action" class="input" value="{{ selected_action }}"
            placeholder="e.g. SALE_COMPLETED">

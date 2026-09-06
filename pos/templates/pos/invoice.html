@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <button type="button" class="btn btn--ghost no-print" onclick="window.print()">Print</button>
   {% if 'pos.sell' in capabilities %}
     <a class="btn no-print" href="{% url 'pos:pos_terminal' %}">New Sale</a>

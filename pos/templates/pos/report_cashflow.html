@@ -9,7 +9,7 @@ refunds plus purchase orders. Net is the difference, and it can legitimately
 be negative on a day with a large restock.
 {% endcomment %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
 {% endblock %}
 
@@ -19,46 +19,70 @@ be negative on a day with a large restock.
 {% include "pos/_date_filter.html" %}
 
 <div class="stat-grid">
-  <div class="stat">
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Cash in</div>
     <div class="stat__value">{{ currency }} {{ flow.inflow|floatformat:2|intcomma }}</div>
     <div class="stat__meta">collected from sales</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-down" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Cash out</div>
     <div class="stat__value stat__value--warn">{{ currency }} {{ flow.outflow|floatformat:2|intcomma }}</div>
     <div class="stat__meta">refunds + purchases</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Net cash flow</div>
     <div class="stat__value">{{ currency }} {{ flow.net|floatformat:2|intcomma }}</div>
     <div class="stat__meta">in &minus; out</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="calendar" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Days in range</div>
     <div class="stat__value stat__value--plain">{{ daily|length }}</div>
   </div>
 </div>
+</div>
 
 <div class="stat-grid">
   <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Sales takings</div>
-    <div class="stat__value stat__value--plain">{{ currency }} {{ flow.sales|floatformat:2|intcomma }}</div>
+    <div class="stat__value stat__value--plain">{{ currency }} {{ flow.sales.collected|floatformat:2|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="rotate" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Refunds paid</div>
-    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.refunds|floatformat:2|intcomma }}</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.refunds.refunded|floatformat:2|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="inbox" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Purchases paid</div>
-    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.purchases|floatformat:2|intcomma }}</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ flow.purchases.amount|floatformat:2|intcomma }}</div>
   </div>
-  <div class="stat">
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="calendar" cls="icon--lg" %}</span>
+  <div class="stat__text">
     <div class="stat__label">Range</div>
     <div class="stat__value stat__value--plain" style="font-size:15px">
-      {{ start|date:"d M Y" }}<br>{{ end|date:"d M Y" }}
+    {{ start|date:"d M Y" }}<br>{{ end|date:"d M Y" }}
     </div>
   </div>
+</div>
 </div>
 
 {% include "pos/_chart.html" %}
