@@ -24,6 +24,9 @@ one Sales Report with a From/To range replaced all three.
   <a href="{% url 'pos:report_collections' %}" class="report-tab {% if request.resolver_match.url_name == 'report_collections' %}is-active{% endif %}">
     {% include "pos/_icon.html" with name="badge-user" %} User Wise Collection
   </a>
+  <a href="{% url 'pos:report_profit' %}" class="report-tab {% if request.resolver_match.url_name == 'report_profit' %}is-active{% endif %}">
+    {% include "pos/_icon.html" with name="wallet" %} Profits
+  </a>
   <a href="{% url 'pos:report_customers' %}" class="report-tab {% if request.resolver_match.url_name == 'report_customers' %}is-active{% endif %}">
     {% include "pos/_icon.html" with name="users" %} Customer Report
   </a>

@@ -1,0 +1,182 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% comment %}
+Margin on what was actually sold in the range.
+
+Two things this page is careful about:
+
+  * Profit comes from the cost captured on each sale line, never from the
+    product's present cost_price and never from current stock. Repricing a
+    product cannot rewrite a margin already booked.
+
+  * Where a line has no captured cost (sales made before the snapshot
+    existed) it is shown as "cost unknown" and left out of the profit
+    figures. The banner below states how much revenue that covers, so the
+    gross profit is never read as covering the whole period.
+{% endcomment %}
+
+{% block topbar_actions %}
+  <a class="btn btn--ghost"
+     href="?from={{ start|date:'Y-m-d' }}&to={{ end|date:'Y-m-d' }}&export=csv">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+{% include "pos/_date_filter.html" %}
+
+{# --------------------------------------------------------- summary tiles #}
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat__label">Total revenue</div>
+    <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ totals.units|intcomma }} item{{ totals.units|pluralize }} sold</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Total cost</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.cost|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">cost of goods sold</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Gross profit</div>
+    <div class="stat__value">
+      {{ currency }} {{ totals.profit|floatformat:2|intcomma }}
+    </div>
+    <div class="stat__meta">revenue &minus; cost</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Profit margin</div>
+    <div class="stat__value stat__value--plain">
+      {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}%{% else %}&mdash;{% endif %}
+    </div>
+    <div class="stat__meta">
+      {% if totals.margin is not None %}on costed sales{% else %}no cost data in range{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat__label">Transactions</div>
+    <div class="stat__value stat__value--plain">{{ transactions|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Items sold</div>
+    <div class="stat__value stat__value--plain">{{ totals.units|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Products</div>
+    <div class="stat__value stat__value--plain">{{ totals.products|intcomma }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat__label">Days in range</div>
+    <div class="stat__value stat__value--plain">{{ days }}</div>
+  </div>
+</div>
+
+{# ------------------------------------------------- disclosure, if needed #}
+{% if not totals.complete %}
+  <div class="alert alert--warn" role="status">
+    <div>
+      <strong>{{ totals.units_unknown|intcomma }} of {{ totals.units|intcomma }} items sold have no recorded cost.</strong>
+      They were sold before the system began storing the cost price on each
+      sale, so their profit cannot be calculated and they are excluded from the
+      figures above. That covers
+      <strong>{{ currency }} {{ totals.revenue_unknown|floatformat:2|intcomma }}</strong>
+      of revenue in this range.
+      {% if totals.units_costed %}
+        The profit and margin shown are for the
+        {{ totals.units_costed|intcomma }} item{{ totals.units_costed|pluralize }}
+        that do have a recorded cost.
+      {% else %}
+        No item in this range has a recorded cost, so no profit can be shown.
+        Sales made from now on will record it automatically.
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+{# ------------------------------------------------------------ detail table #}
+<section class="card">
+  <div class="card__head">
+    <h2>Profit by product</h2>
+    <div class="topbar__spacer"></div>
+    <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
+  </div>
+
+  {% if rows %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th class="num">Qty sold</th>
+            <th class="num">Cost price</th>
+            <th class="num">Selling price</th>
+            <th class="num">Revenue</th>
+            <th class="num">Total cost</th>
+            <th class="num">Profit</th>
+            <th class="num">Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <span class="strong">{{ row.product_name }}</span>
+                {% if not row.complete %}
+                  <span class="badge badge--warn"
+                        title="{{ row.unknown_units }} of {{ row.units }} sold before cost was recorded">
+                    {% if row.units_costed %}partial cost{% else %}cost unknown{% endif %}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="num">{{ row.units|intcomma }}</td>
+              <td class="num">
+                {% if row.unit_cost is not None %}{{ currency }} {{ row.unit_cost|floatformat:2|intcomma }}
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
+              <td class="num">{{ currency }} {{ row.unit_price|floatformat:2|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+              <td class="num">
+                {% if row.units_costed %}{{ currency }} {{ row.cost|floatformat:2|intcomma }}
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.profit is not None %}
+                  <strong>
+                    {{ currency }} {{ row.profit|floatformat:2|intcomma }}
+                  </strong>
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if row.margin is not None %}{{ row.margin|floatformat:2 }}%
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th>Total</th>
+            <th class="num">{{ totals.units|intcomma }}</th>
+            <th class="num"></th>
+            <th class="num"></th>
+            <th class="num">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</th>
+            <th class="num">{{ currency }} {{ totals.cost|floatformat:2|intcomma }}</th>
+            <th class="num">{{ currency }} {{ totals.profit|floatformat:2|intcomma }}</th>
+            <th class="num">
+              {% if totals.margin is not None %}{{ totals.margin|floatformat:2 }}%{% else %}&mdash;{% endif %}
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% include "pos/_pagination.html" %}
+  {% else %}
+    {% include "pos/_empty.html" with title="Nothing sold in this range" hint="Choose a wider date range, or record a sale at the till." icon="chart" %}
+  {% endif %}
+</section>
+{% endblock %}

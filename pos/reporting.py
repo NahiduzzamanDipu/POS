@@ -6,7 +6,7 @@ Python to be summed in a loop. Only non-void sales count towards revenue.
 
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models import Case, Count, DecimalField, F, IntegerField, Sum, Value, When
 from django.db.models.functions import Coalesce, TruncMonth
 
 from .models import Sale, SaleItem, SaleReturn
@@ -81,6 +81,107 @@ def top_products(sales, limit=10, *, active_only=True):
         .annotate(units=Coalesce(Sum('quantity'), Value(0)), revenue=_money(Sum('subtotal')))
         .order_by('-units')[:limit]
     )
+
+
+def profit_rows(sales):
+    """Per-product margin for the given sales, newest-selling first.
+
+    Revenue is ``subtotal`` -- the line total after its discount -- so a
+    discount given at the till reduces the margin it actually reduced.
+
+    Cost comes from ``SaleItem.unit_cost``, the figure captured when the sale
+    was made, NOT from the product's current ``cost_price``. Repricing a
+    product must not rewrite the margin on sales already completed.
+
+    Lines predating that snapshot have ``unit_cost = NULL``. They are reported
+    separately as "cost unknown" rather than being valued at today's cost,
+    which was never what the business paid. ``unknown_units`` and
+    ``unknown_revenue`` carry that shortfall so the template can disclose it.
+    """
+    items = SaleItem.objects.filter(sale__in=sales)
+
+    rows = (
+        items
+        .values('product_name')
+        .annotate(
+            units=Coalesce(Sum('quantity'), Value(0)),
+            revenue=_money(Sum('subtotal')),
+            # Cost only where it was captured; the ELSE 0 deliberately does not
+            # guess a cost, and the paired units_costed says how much of the
+            # quantity that total actually covers.
+            cost=_money(Sum(
+                Case(
+                    When(unit_cost__isnull=False, then=F('unit_cost') * F('quantity')),
+                    default=Value(ZERO),
+                    output_field=DecimalField(max_digits=16, decimal_places=2),
+                )
+            )),
+            units_costed=Coalesce(
+                Sum(Case(When(unit_cost__isnull=False, then=F('quantity')),
+                         default=Value(0), output_field=IntegerField())),
+                Value(0),
+            ),
+            revenue_costed=_money(Sum(
+                Case(
+                    When(unit_cost__isnull=False, then=F('subtotal')),
+                    default=Value(ZERO),
+                    output_field=DecimalField(max_digits=16, decimal_places=2),
+                )
+            )),
+        )
+        .order_by('-units')
+    )
+
+    out = []
+    for row in rows:
+        units = row['units'] or 0
+        costed = row['units_costed'] or 0
+        # Margin is only meaningful over the part of the line we know the cost
+        # of, so profit and margin are computed against revenue_costed.
+        revenue_costed = row['revenue_costed']
+        profit = revenue_costed - row['cost'] if costed else None
+        margin = (
+            (profit / revenue_costed * 100).quantize(Decimal('0.01'))
+            if profit is not None and revenue_costed else None
+        )
+        row.update({
+            'unknown_units': units - costed,
+            'complete': costed == units and units > 0,
+            'unit_cost': (row['cost'] / costed).quantize(Decimal('0.01')) if costed else None,
+            'unit_price': (row['revenue'] / units).quantize(Decimal('0.01')) if units else ZERO,
+            'profit': profit,
+            'margin': margin,
+        })
+        out.append(row)
+    return out
+
+
+def profit_summary(rows):
+    """Headline margin figures, counting only lines with a captured cost."""
+    revenue = sum((r['revenue'] for r in rows), ZERO)
+    revenue_costed = sum((r['revenue_costed'] for r in rows), ZERO)
+    cost = sum((r['cost'] for r in rows), ZERO)
+    units = sum((r['units'] or 0) for r in rows)
+    units_costed = sum((r['units_costed'] or 0) for r in rows)
+    profit = revenue_costed - cost
+
+    return {
+        'revenue': revenue,
+        'revenue_costed': revenue_costed,
+        # Revenue we cannot attribute a cost to. Shown in the UI so the gross
+        # profit figure is never read as covering the whole period.
+        'revenue_unknown': revenue - revenue_costed,
+        'cost': cost,
+        'profit': profit,
+        # Guard against a zero-revenue range rather than dividing by it.
+        'margin': (profit / revenue_costed * 100).quantize(Decimal('0.01'))
+                  if revenue_costed else None,
+        'units': units,
+        'units_costed': units_costed,
+        'units_unknown': units - units_costed,
+        'products': len(rows),
+        'complete': units_costed == units,
+    }
 
 
 def sales_by_category(sales, *, active_only=True):

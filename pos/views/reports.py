@@ -358,6 +358,70 @@ def inventory_report(request):
     )
 
 
+# ------------------------------------------------------------------ G profits
+@require(REPORT_VIEW)
+def profit_report(request):
+    """Margin over an inclusive From/To range, from what was actually sold.
+
+    Profit is computed from ``SaleItem.unit_cost`` -- the cost captured when
+    each sale was made -- never from the product's present ``cost_price`` and
+    never from current stock. Repricing a product afterwards therefore cannot
+    change the margin already booked.
+
+    Lines recorded before that snapshot existed carry no cost. They are
+    reported as "cost unknown" and left out of the profit figures rather than
+    valued at a cost the business never paid, and the template states how much
+    revenue that covers so the totals are not mistaken for the whole period.
+    """
+    start, end = _date_range(request)
+    form = _range_form(request, start, end)
+    sales = reporting.sales_between(start, end)
+    rows = reporting.profit_rows(sales)
+    totals = reporting.profit_summary(rows)
+
+    if request.GET.get('export') == 'csv':
+        return csv_response(
+            f'profit-{start}-to-{end}.csv',
+            ['Product', 'Units Sold', 'Units Costed', 'Avg Cost Price',
+             'Avg Selling Price', 'Revenue', 'Total Cost', 'Profit',
+             'Margin %', 'Cost Data'],
+            [
+                [
+                    row['product_name'],
+                    row['units'],
+                    row['units_costed'],
+                    row['unit_cost'] if row['unit_cost'] is not None else '',
+                    row['unit_price'],
+                    row['revenue'],
+                    row['cost'] if row['units_costed'] else '',
+                    row['profit'] if row['profit'] is not None else '',
+                    row['margin'] if row['margin'] is not None else '',
+                    'complete' if row['complete'] else
+                    ('partial' if row['units_costed'] else 'unknown'),
+                ]
+                for row in rows
+            ],
+        )
+
+    page = paginate(request, rows, per_page=50)
+
+    return render(
+        request,
+        'pos/report_profit.html',
+        {
+            'page_title': 'Profits',
+            'form': form,
+            'start': start,
+            'end': end,
+            'days': (end - start).days + 1,
+            'rows': page,
+            'page_obj': page,
+            'totals': totals,
+            'transactions': sales.count(),
+        },
+    )
+
+
 # ----------------------------------------------------- C product performance
 @require(REPORT_VIEW)
 def product_report(request):

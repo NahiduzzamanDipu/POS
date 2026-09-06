@@ -84,6 +84,7 @@ urlpatterns = [
     path('reports/suppliers/', reports.supplier_report, name='report_suppliers'),
     path('reports/cash-flow/', reports.cashflow_report, name='report_cashflow'),
     path('reports/collections/', reports.collection_report, name='report_collections'),
+    path('reports/profit/', reports.profit_report, name='report_profit'),
     path('reports/customer/', reports.customer_report, name='report_customers'),
 
     # Superseded by the Sales Report; these redirect into it with the matching
