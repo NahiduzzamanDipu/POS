@@ -573,6 +573,49 @@ table.data tfoot td {
 }
 table.data--tight td, table.data--tight th { padding-top: 9px; padding-bottom: 9px; }
 
+/* Wide tables that turn into a stack of cards on a narrow screen.
+
+   Each cell carries data-label="..." and prints it as its own heading, so the
+   row stays readable without a horizontal scrollbar. Applied where a table has
+   more columns than a phone can honestly show. */
+@media (max-width: 760px) {
+  table.data--stack thead { display: none; }
+  table.data--stack, table.data--stack tbody,
+  table.data--stack tr, table.data--stack td { display: block; width: 100%; }
+  table.data--stack tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: var(--sp-3);
+    padding: var(--sp-2) 0;
+    background: var(--surface);
+  }
+  table.data--stack tr:hover { background: var(--surface); }
+  table.data--stack td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    text-align: left;
+    padding: 7px var(--sp-4);
+    border-bottom: 0;
+  }
+  table.data--stack td::before {
+    content: attr(data-label);
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  table.data--stack td:empty { display: none; }
+  table.data--stack td.num { text-align: right; }
+  table.data--stack .act-group { justify-content: flex-end; }
+  /* A cell holding only a colspan'd empty state should not be laid out as a row. */
+  table.data--stack td[colspan] { display: block; }
+  table.data--stack td[colspan]::before { content: none; }
+}
+
 /* Key/value table used in the report summary panels. */
 table.kv { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 table.kv th {
@@ -974,10 +1017,86 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
 /* ------------------------------------------------------- 13 POS terminal */
 .pos {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) 410px;
   gap: var(--sp-5);
   align-items: start;
 }
+
+/* --- viewport-locked till -------------------------------------------------
+   On the sales screen the page is sized to the window, not to its content, so
+   the cashier never scrolls the document to reach the total or the checkout
+   button. Only two things scroll: the search results, and the cart's items. */
+.pos-page { overflow: hidden; }
+.pos-page .app__main { height: 100vh; min-height: 0; }
+.pos-page .content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--sp-5);
+  overflow: hidden;
+}
+.pos-page .page-head { flex: none; margin-bottom: var(--sp-4); }
+.pos-page .pos { flex: 1; min-height: 0; }
+
+/* Left pane: search box fixed, results scroll. */
+.pos__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-height: 0;
+  height: 100%;
+}
+.pos-search { flex: none; }
+.pos__results {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pos__results .card__head { flex: none; }
+.pos__results-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Right pane: head and checkout pinned, items scroll between them. */
+.cart {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.cart__head { flex: none; }
+.cart__lines {
+  flex: 1 1 auto;
+  min-height: 96px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+}
+/* The summary yields before the item list does, and scrolls itself on a short
+   window, so the pinned footer below is never pushed off screen. */
+.cart__summary {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.cart__cta {
+  flex: none;
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-alt);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.cart__cta .totals__row--grand {
+  margin: 0 0 var(--sp-3);
+  padding-top: 0;
+  border-top: 0;
+}
+.cart__pay { gap: 7px; }
 
 .pos-search__box { position: relative; }
 .pos-search__box .icon--search {
@@ -1036,8 +1155,7 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
 .result__price s { color: var(--text-soft); font-weight: 400; font-size: 12px; }
 
 /* Cart */
-.cart { position: sticky; top: calc(var(--topbar-h) + var(--sp-5)); }
-.cart__lines { max-height: 34vh; overflow-y: auto; border-bottom: 1px solid var(--border); }
+
 .cart-line {
   display: flex;
   align-items: center;
@@ -1058,8 +1176,48 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
   font-weight: 600; font-size: 13px; line-height: 1.35;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cart-line__price { font-size: 12px; color: var(--text-muted); }
-.cart-line__price s { color: var(--text-soft); }
+
+/* SKU, unit price and any discount, on one compact line so more of the cart
+   fits on screen at once. */
+.cart-line__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.cart-line__meta s { color: var(--text-soft); }
+.cart-line__sku {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+.cart-line__off { color: var(--success); font-weight: 600; }
+
+.cart__empty {
+  padding: var(--sp-8) var(--sp-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.cart__empty-icon {
+  width: 44px; height: 44px;
+  margin: 0 auto var(--sp-3);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  color: var(--text-soft);
+}
+.cart__empty strong {
+  display: block; color: var(--text); font-size: 14px; margin-bottom: 3px;
+}
 .cart-line__side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex: none; }
 .cart-line__total { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
 
@@ -1090,10 +1248,20 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
 .qty__input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--brand-ring); }
 
 .cart-line__remove {
-  background: none; border: 0; color: var(--text-soft); cursor: pointer;
-  padding: 2px; display: grid; place-items: center; flex: none;
+  width: 24px; height: 24px; flex: none;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-soft);
+  cursor: pointer;
 }
-.cart-line__remove:hover { color: var(--danger); }
+.cart-line__remove:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: #f6c9c9;
+}
 
 .totals { display: flex; flex-direction: column; gap: 8px; }
 .totals__row { display: flex; justify-content: space-between; gap: var(--sp-3); font-size: 13.5px; }
@@ -1286,9 +1454,29 @@ input[type="file"] { padding: 7px var(--sp-3); height: auto; }
 }
 
 @media (max-width: 1080px) {
+  /* Give the page back to the document: a locked viewport on a small screen
+     hides content instead of saving a scroll. The total and the checkout
+     button follow the cashier down the page instead. */
   .pos { grid-template-columns: 1fr; }
-  .cart { position: static; }
-  .cart__lines { max-height: none; }
+  .pos-page, .pos-page .app__main { overflow: visible; height: auto; }
+  .pos-page .content { overflow: visible; display: block; padding-bottom: 96px; }
+  .pos-page .pos { min-height: 0; }
+  .pos__pane, .pos__results, .cart { height: auto; overflow: visible; }
+  .pos__results-scroll { max-height: 60vh; }
+  .cart { margin-top: var(--sp-5); }
+  .cart__lines { max-height: 46vh; min-height: 0; }
+  .cart__summary { overflow: visible; }
+
+  .cart__cta {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--border-strong);
+    box-shadow: 0 -6px 18px rgba(15, 33, 55, .1);
+    margin: 0 -1px -1px;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
 }
 
 @media (max-width: 992px) {

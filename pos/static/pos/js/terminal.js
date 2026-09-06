@@ -153,12 +153,15 @@
 
     if (cart.size === 0) {
       var note = document.createElement('div');
-      note.className = 'empty';
-      note.style.padding = '32px 20px';
+      note.className = 'cart__empty';
+      var mark = document.createElement('span');
+      mark.className = 'cart__empty-icon';
+      mark.appendChild(icon('sale', 'icon--lg'));
       var strong = document.createElement('strong');
       strong.textContent = 'Cart is empty';
       var hint = document.createElement('div');
       hint.textContent = 'Search for a product to start the sale.';
+      note.appendChild(mark);
       note.appendChild(strong);
       note.appendChild(hint);
       els.lines.appendChild(note);
@@ -167,8 +170,12 @@
     cart.forEach(function (line) {
       units += line.qty;
 
+      var lineDiscount = (line.price - line.final) * line.qty;
+      var subtotal = line.final * line.qty;
+
       var row = document.createElement('div');
       row.className = 'cart-line';
+
       row.appendChild(thumb(line));
 
       var text = document.createElement('div');
@@ -180,18 +187,29 @@
       name.textContent = line.name;
       text.appendChild(name);
 
-      var price = document.createElement('div');
-      price.className = 'cart-line__price';
+      // SKU, then what one unit costs and any discount coming off it.
+      var meta = document.createElement('div');
+      meta.className = 'cart-line__meta';
+      if (line.sku) {
+        var sku = document.createElement('span');
+        sku.className = 'cart-line__sku';
+        sku.textContent = line.sku;
+        meta.appendChild(sku);
+      }
+      var unit = document.createElement('span');
+      unit.textContent = money(line.final) + ' each';
+      meta.appendChild(unit);
       if (Number(line.discount) > 0) {
-        price.appendChild(document.createTextNode(money(line.final) + ' '));
         var was = document.createElement('s');
         was.textContent = money(line.price);
-        price.appendChild(was);
-        price.appendChild(document.createTextNode(' · ' + Number(line.discount) + '% off'));
-      } else {
-        price.textContent = money(line.price) + ' each';
+        meta.appendChild(was);
+        var off = document.createElement('span');
+        off.className = 'cart-line__off';
+        off.textContent = '-' + money(lineDiscount);
+        off.title = Number(line.discount) + '% product discount';
+        meta.appendChild(off);
       }
-      text.appendChild(price);
+      text.appendChild(meta);
       row.appendChild(text);
 
       var side = document.createElement('div');
@@ -199,7 +217,7 @@
       side.appendChild(qtyControl(line));
       var total = document.createElement('div');
       total.className = 'cart-line__total';
-      total.textContent = money(Number(line.final) * line.qty);
+      total.textContent = money(subtotal);
       side.appendChild(total);
       row.appendChild(side);
 
@@ -207,7 +225,8 @@
       remove.type = 'button';
       remove.className = 'cart-line__remove';
       remove.setAttribute('aria-label', 'Remove ' + line.name);
-      remove.appendChild(icon('trash', 'icon--sm'));
+      remove.title = 'Remove';
+      remove.appendChild(icon('x', 'icon--sm'));
       remove.addEventListener('click', function () { setQuantity(line.id, 0); });
       row.appendChild(remove);
 
@@ -323,6 +342,7 @@
     return {
       id: item.id,
       name: item.name,
+      sku: item.sku || '',
       price: Number(item.price),
       discount: Number(item.discount_percent),
       final: Number(item.final_price),

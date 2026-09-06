@@ -70,6 +70,16 @@ class User(AbstractUser):
         return self.get_full_name() or self.username
 
     @property
+    def full_name(self):
+        """The person's real name, or empty when it was never recorded.
+
+        Deliberately does NOT fall back to ``username`` the way
+        ``display_name`` does: staff screens must never surface a username, so
+        a blank name has to read as blank rather than quietly leaking one.
+        """
+        return self.get_full_name().strip()
+
+    @property
     def role_label(self):
         return self.get_role_display()
 

@@ -4,14 +4,24 @@
 {% comment %}
 The till. Search -> pick -> add to cart -> take payment.
 
-There is deliberately no product grid: on a catalogue of any size, browsing
-tiles is slower than typing three letters, and it turns the sales screen into a
-second Products page. Results come from the lookup API as the cashier types.
+Two deliberate shapes here:
+
+  * No product catalogue. On a catalogue of any size, browsing tiles is slower
+    than typing three letters, and it turns the sales screen into a second
+    Products page. Results come from the lookup API as the cashier types.
+
+  * The page is sized to the viewport rather than to its content. Only the
+    search results and the cart's item list scroll; the totals and the
+    Complete Sale button never leave the screen, however long the cart gets.
+    Below 1080px this unwinds into a normal scrolling page with a pinned
+    checkout bar, because a locked viewport on a phone is a trap.
 {% endcomment %}
+
+{% block body_class %}pos-page{% endblock %}
 
 {% block page_subtitle %}
   <div class="page-head__sub">
-    Search a product by name, SKU or barcode, then add it to the cart.
+    Search by product name, ID or SKU, then add to the cart.
   </div>
 {% endblock %}
 
@@ -25,12 +35,12 @@ second Products page. Results come from the lookup API as the cashier types.
 <div class="pos">
 
   {# ------------------------------------------------------ product search #}
-  <div>
+  <div class="pos__pane">
     <div class="pos-search">
       <div class="pos-search__box">
         {% include "pos/_icon.html" with name="search" cls="icon--lg icon--search" %}
         <input type="search" id="product-search" class="input" autocomplete="off" autofocus
-               placeholder="Search product name, SKU or scan a barcode&hellip;"
+               placeholder="Search product name, ID or SKU &mdash; or scan a barcode"
                value="{{ search_term }}" aria-label="Search products"
                aria-controls="search-results" role="combobox" aria-expanded="false">
         <span class="pos-search__hint">Enter to add</span>
@@ -40,13 +50,13 @@ second Products page. Results come from the lookup API as the cashier types.
       </div>
     </div>
 
-    <section class="card" style="margin-top:12px">
+    <section class="card pos__results">
       <div class="card__head">
         <h2>Search Results</h2>
         <div class="spacer"></div>
         <span class="muted small" id="result-count"></span>
       </div>
-      <div class="card__body card__body--flush">
+      <div class="card__body card__body--flush pos__results-scroll">
         <div class="result-list" id="search-results" role="listbox" aria-label="Search results"></div>
         <div id="search-empty">
           {% include "pos/_empty.html" with title="Nothing searched yet" hint="Type at least two characters, or scan a barcode to add it straight to the cart." icon="search" %}
@@ -62,7 +72,7 @@ second Products page. Results come from the lookup API as the cashier types.
     <input type="hidden" name="txn_token" value="{{ txn_token }}">
     <input type="hidden" name="payment_method" id="payment-method" value="CASH">
 
-    <div class="card__head">
+    <div class="card__head cart__head">
       <h2>Shopping Cart</h2>
       <span class="badge badge--brand" id="cart-count">0 items</span>
       <div class="spacer"></div>
@@ -71,9 +81,10 @@ second Products page. Results come from the lookup API as the cashier types.
       </button>
     </div>
 
+    {# The only part of the cart that scrolls. #}
     <div class="cart__lines" id="cart-lines"></div>
 
-    <div class="card__body">
+    <div class="cart__summary">
       <div class="field">
         <label for="customer-number">Customer Number</label>
         <div class="input-icon">
@@ -87,7 +98,7 @@ second Products page. Results come from the lookup API as the cashier types.
         </div>
       </div>
 
-      <div class="totals" style="margin-top:18px">
+      <div class="totals">
         <div class="totals__row totals__row--muted">
           <span>Subtotal</span><span id="t-subtotal">{{ currency }} 0.00</span>
         </div>
@@ -101,12 +112,9 @@ second Products page. Results come from the lookup API as the cashier types.
         <div class="totals__row totals__row--muted">
           <span>Tax ({{ tax_rate|floatformat:"-2" }}%)</span><span id="t-tax">{{ currency }} 0.00</span>
         </div>
-        <div class="totals__row totals__row--grand">
-          <span>Total</span><span id="t-total">{{ currency }} 0.00</span>
-        </div>
       </div>
 
-      <div class="field" style="margin-top:18px">
+      <div class="field cart__pay">
         <label>Payment Method</label>
         <div class="pay-methods" role="group" aria-label="Payment method">
           {% for value, label in payment_methods %}
@@ -122,15 +130,20 @@ second Products page. Results come from the lookup API as the cashier types.
         </div>
       </div>
 
-      <div class="field" id="cash-block" style="margin-top:14px">
+      <div class="field" id="cash-block">
         <label for="amount-paid">Cash received</label>
         <input type="number" name="amount_paid" id="amount-paid" class="input" min="0" step="0.01"
                placeholder="0.00" autocomplete="off">
         <span class="helptext" id="change-note">Change is worked out once there is a total.</span>
       </div>
+    </div>
 
-      <button type="submit" class="btn btn--success btn--block btn--lg" id="complete-sale"
-              style="margin-top:18px" disabled>
+    {# Pinned: the total and the checkout button never scroll out of reach. #}
+    <div class="cart__cta">
+      <div class="totals__row totals__row--grand">
+        <span>Total</span><span id="t-total">{{ currency }} 0.00</span>
+      </div>
+      <button type="submit" class="btn btn--success btn--block btn--lg" id="complete-sale" disabled>
         {% include "pos/_icon.html" with name="check" %} Complete Sale
       </button>
     </div>

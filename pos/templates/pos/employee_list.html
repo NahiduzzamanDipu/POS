@@ -2,9 +2,13 @@
 {% load humanize %}
 
 {% comment %}
-The employee table shows exactly: Employee ID, Role, Phone, Sales, Status,
-Email. Usernames are not shown anywhere -- they are an internal detail of
-Django's auth tables now that staff sign in with an email or phone.
+The employee table shows: Employee ID, Employee Name, Role, Phone, Sales,
+Status, Email. The name reads from the existing first/last name fields.
+
+Usernames appear nowhere -- they are an internal detail of Django's auth
+tables now that staff sign in with an email or phone, which is also why the
+name is read through `full_name` rather than `display_name`: the latter falls
+back to the username when a name is blank.
 {% endcomment %}
 
 {% block page_subtitle %}
@@ -74,10 +78,11 @@ Django's auth tables now that staff sign in with an email or phone.
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
-      <table class="data">
+      <table class="data data--stack">
         <thead>
           <tr>
             <th>Employee ID</th>
+            <th>Employee Name</th>
             <th>Role</th>
             <th>Phone</th>
             <th class="num">Sales</th>
@@ -89,18 +94,31 @@ Django's auth tables now that staff sign in with an email or phone.
         <tbody>
           {% for employee in page_obj %}
             <tr>
-              <td>
+              <td data-label="Employee ID" class="nowrap">
+                <span class="badge badge--brand">{{ employee.employee_id|default:"—" }}</span>
+              </td>
+              {# Name comes from the existing first/last name fields. #}
+              {# full_name, not display_name: the latter falls back to the #}
+              {# username, which must never appear on this screen. #}
+              <td data-label="Employee Name">
                 <div class="media-cell">
-                  <span class="avatar">{{ employee.employee_id|default:"?"|slice:"-2:" }}</span>
+                  <span class="avatar">
+                    {% if employee.full_name %}{{ employee.full_name|slice:":1"|upper }}
+                    {% else %}{% include "pos/_icon.html" with name="user" cls="icon--sm" %}{% endif %}
+                  </span>
                   <div class="media-cell__text">
-                    <div class="media-cell__title">{{ employee.employee_id|default:"—" }}</div>
+                    {% if employee.full_name %}
+                      <div class="media-cell__title">{{ employee.full_name }}</div>
+                    {% else %}
+                      <div class="media-cell__title soft">Name not set</div>
+                    {% endif %}
                     {% if employee.position %}
                       <div class="media-cell__sub">{{ employee.position }}</div>
                     {% endif %}
                   </div>
                 </div>
               </td>
-              <td>
+              <td data-label="Role">
                 {% if employee.role == 'ADMIN' %}
                   <span class="badge badge--danger">{{ employee.get_role_display }}</span>
                 {% elif employee.role == 'MANAGER' %}
@@ -111,16 +129,16 @@ Django's auth tables now that staff sign in with an email or phone.
                   <span class="badge">{{ employee.get_role_display }}</span>
                 {% endif %}
               </td>
-              <td class="nowrap">
+              <td data-label="Phone" class="nowrap">
                 {% if employee.phone %}
                   <a href="tel:{{ employee.phone }}">{{ employee.phone }}</a>
                 {% else %}<span class="soft">—</span>{% endif %}
               </td>
-              <td class="num">
+              <td data-label="Sales" class="num">
                 <span class="strong">{{ employee.sale_count|intcomma }}</span>
                 <div class="media-cell__sub">{{ currency }} {{ employee.sale_total|floatformat:2|intcomma }}</div>
               </td>
-              <td>
+              <td data-label="Status">
                 {% if employee.is_active %}
                   <span class="badge badge--success"><span class="badge__dot"></span>Active</span>
                 {% elif not employee.last_login %}
@@ -129,19 +147,19 @@ Django's auth tables now that staff sign in with an email or phone.
                   <span class="badge badge--danger"><span class="badge__dot"></span>Disabled</span>
                 {% endif %}
               </td>
-              <td class="muted">
+              <td data-label="Email" class="muted">
                 {% if employee.email %}
                   <a href="mailto:{{ employee.email }}">{{ employee.email }}</a>
                 {% else %}<span class="soft">—</span>{% endif %}
               </td>
-              <td class="num">
+              <td data-label="Action" class="num">
                 <div class="act-group">
                   <a class="act act--edit" href="{% url 'pos:employee_update' employee.pk %}" title="Edit">
                     {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
                   </a>
                   {% if employee != user %}
                     <form method="post" action="{% url 'pos:employee_toggle' employee.pk %}"
-                          data-confirm="{% if employee.is_active %}Disable {{ employee.employee_id }}? They will not be able to sign in until re-enabled.{% else %}Enable {{ employee.employee_id }} so they can sign in?{% endif %}"
+                          data-confirm="{% if employee.is_active %}Disable {{ employee.full_name|default:employee.employee_id }} ({{ employee.employee_id }})? They will not be able to sign in until re-enabled.{% else %}Enable {{ employee.full_name|default:employee.employee_id }} ({{ employee.employee_id }}) so they can sign in?{% endif %}"
                           data-confirm-label="{% if employee.is_active %}Disable{% else %}Enable{% endif %}"
                           data-confirm-tone="{% if employee.is_active %}danger{% else %}safe{% endif %}">
                       {% csrf_token %}
@@ -160,7 +178,7 @@ Django's auth tables now that staff sign in with an email or phone.
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="7">
+            <tr><td colspan="8">
               {% include "pos/_empty.html" with title="No employees match this filter" hint="Adjust the filters, or add a new employee account." icon="badge-user" %}
             </td></tr>
           {% endfor %}

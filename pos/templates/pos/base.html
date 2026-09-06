@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23f56a1c'/><text x='16' y='23' font-size='18' font-family='Segoe UI,sans-serif' font-weight='700' fill='white' text-anchor='middle'>O</text></svg>">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 {% include "pos/_icons.html" %}
 
 <div class="app">
