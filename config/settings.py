@@ -16,14 +16,11 @@ def env_bool(name, default=False):
     return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-0hii+htqbqcvfqn-9ejw*p3g+deg_&go93)9^z$&z%#)zp^xds',
-)
+SECRET_KEY = 'django-insecure-0hii+htqbqcvfqn-9ejw*p3g+deg_&go93)9^z$&z%#)zp^xds'
 
-DEBUG = env_bool('DJANGO_DEBUG', True)
+DEBUG = True
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+ALLOWED_HOSTS = ['*']
 
 
 INSTALLED_APPS = [
@@ -71,24 +68,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'pos_db'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'TIME_ZONE': os.getenv('DJANGO_TIME_ZONE', 'Asia/Dhaka'),
+        'NAME': os.environ.get('DB_NAME', 'odelltec_pos_db'),
+        'USER': os.environ.get('DB_USER', 'odelltec_rasel'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'rasel@5437'),
+        'HOST':  os.environ.get('DB_HOST','127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT','3306'),
+        'TIME_ZONE': os.environ.get('DJANGO_TIME_ZONE', 'Asia/Dhaka'),
         'OPTIONS': {
             'charset': 'utf8mb4',
-            'sql_mode': 'STRICT_TRANS_TABLES',
-        },
-        'TEST': {
-            'CHARSET': 'utf8mb4',
-            'COLLATION': 'utf8mb4_unicode_ci',
         },
     }
 }
-
-
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -114,8 +104,13 @@ USE_TZ = True
 
 
 # Static files
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# STATIC_URL = 'static/'
+# STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
+
 
 
 # Sessions -- cashiers share terminals, so sessions must not outlive a shift.
