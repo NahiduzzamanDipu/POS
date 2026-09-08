@@ -18,3 +18,6 @@ db.sqlite3-wal
 # phone numbers, and a pull would overwrite whatever the live site holds.
 # A fresh install builds one with: manage.py migrate && manage.py ensure_admin
 db.sqlite3
+
+# Deployment prompt: contains a generated signing key.
+DEPLOY_PROMPT.md
