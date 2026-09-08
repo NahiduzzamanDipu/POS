@@ -23,7 +23,17 @@ SECRET_KEY = os.getenv(
 
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# The default covers local work plus the production domain, so the site still
+# answers if a freshly deployed host has no .env yet. Override it in .env for
+# any other domain.
+DEFAULT_ALLOWED_HOSTS = 'localhost,127.0.0.1,pos.odelltech.com,www.pos.odelltech.com'
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv('DJANGO_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS).split(',')
+    if h.strip()
+]
+
 
 
 INSTALLED_APPS = [
@@ -39,6 +49,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise is inserted here at the end of this file when it is
+    # installed, so static files are served with DEBUG off.
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -159,8 +172,27 @@ USE_TZ = True
 
 
 # Static files
+# ---------------------------------------------------------------------------
+# With DEBUG off Django stops serving static files itself, and a shared host
+# will not always have an Apache alias configured. WhiteNoise fills that gap
+# from STATIC_ROOT after `collectstatic`.
+#
+# It is optional on purpose: if pip could not install it, the site still runs
+# (unstyled with DEBUG off) rather than failing to boot on an ImportError.
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+try:
+    import whitenoise                                   # noqa: F401
+except ImportError:
+    WHITENOISE_AVAILABLE = False
+else:
+    WHITENOISE_AVAILABLE = True
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    # Serve the files as collected. The hashed/manifest storage is deliberately
+    # not used: it hard-fails on a single missing reference, which is a poor
+    # trade on a host where nobody is watching the deploy log.
+    WHITENOISE_MAX_AGE = 60 * 60 * 24 * 7
 
 
 # Sessions -- cashiers share terminals, so sessions must not outlive a shift.
@@ -173,11 +205,38 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 
 if not DEBUG:
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', True)
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Behind a proxy that terminates TLS (cPanel, LiteSpeed, most PaaS) Django
+    # sees plain HTTP unless it is told to trust this header. Without it,
+    # request.is_secure() is False, secure cookies are never sent back, and an
+    # SSL redirect turns into an infinite loop.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SESSION_COOKIE_SECURE = env_bool('DJANGO_SECURE_COOKIES', True)
+    CSRF_COOKIE_SECURE = env_bool('DJANGO_SECURE_COOKIES', True)
+
+    # Off by default, deliberately. Shared hosts nearly always force HTTPS at
+    # the web-server level already, and a second redirect here -- on a host
+    # that does not pass the header above -- makes the whole site unreachable.
+    # A missing redirect is recoverable; a redirect loop is not. Turn it on
+    # with DJANGO_SECURE_SSL_REDIRECT=True once HTTPS is confirmed working.
+    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', False)
+
+    # HSTS is only safe once HTTPS definitely works, for the same reason: a
+    # browser that has seen this header refuses plain HTTP for a year.
+    if env_bool('DJANGO_ENABLE_HSTS', False):
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+    # A public host must not fall back to the key committed in this file.
+    if SECRET_KEY.startswith('django-insecure-'):
+        import warnings
+
+        warnings.warn(
+            'DJANGO_SECRET_KEY is not set, so the fallback key from '
+            'settings.py is in use. Anyone who can read the repository can '
+            'forge sessions. Set it in .env before going live.',
+            RuntimeWarning,
+        )
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 

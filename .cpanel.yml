@@ -1,0 +1,31 @@
+# cPanel Git Version Control deployment.
+#
+# Runs when someone presses "Deploy HEAD Commit" in
+# cPanel > Files > Git Version Control > Manage > Pull or Deploy.
+#
+# Before the first deploy, set VENV below to the path cPanel shows at the top
+# of Setup Python App ("Enter to the virtual environment" line) -- the Python
+# version in that path varies by account.
+#
+# The repository is expected to be cloned directly into the application
+# directory, so there is nothing to copy; these tasks only bring the
+# environment in line with the code that was just pulled.
+---
+deployment:
+  tasks:
+    - export APPDIR=$PWD
+    - export VENV=$HOME/virtualenv/pos.odelltech.com/3.9/bin
+
+    # Dependencies. requirements.txt deliberately excludes mysqlclient, which
+    # needs a compiler most shared hosts do not provide.
+    - $VENV/pip install --upgrade pip
+    - $VENV/pip install -r $APPDIR/requirements.txt
+
+    # Schema, then make sure someone can actually sign in, then the assets.
+    - $VENV/python $APPDIR/manage.py migrate --noinput
+    - $VENV/python $APPDIR/manage.py ensure_admin
+    - $VENV/python $APPDIR/manage.py collectstatic --noinput --clear
+
+    # Passenger reloads the app when this file's timestamp changes.
+    - /bin/mkdir -p $APPDIR/tmp
+    - /usr/bin/touch $APPDIR/tmp/restart.txt

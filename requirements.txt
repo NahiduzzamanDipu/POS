@@ -1,9 +1,19 @@
-# Python 3.9.2 / Django 4.0.3
+# O'dell Tech Shopping - runtime dependencies
+# Python 3.9 / Django 4.0.3
+#
+# Everything here installs from a wheel, so `pip install -r requirements.txt`
+# works on a shared host with no compiler. mysqlclient is deliberately NOT
+# here: it needs build tools and MySQL headers that cPanel accounts rarely
+# have. Install it from requirements-mysql.txt when you want the MySQL
+# backend locally.
 asgiref==3.5.0
 Django==4.0.3
 et-xmlfile==1.1.0
-mysqlclient==2.1.1
 openpyxl==3.1.5
 python-dotenv==0.21.1
 sqlparse==0.4.4
 tzdata==2022.7
+
+# Serves the collected static files when DEBUG is off. settings.py treats it
+# as optional, so the site still boots if this one cannot be installed.
+whitenoise==6.6.0

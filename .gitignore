@@ -5,3 +5,8 @@ venv/
 staticfiles/
 *.log
 .vscode/
+
+# SQLite journal files. The data lives in db.sqlite3 itself; a stale
+# journal committed alongside it can shadow or corrupt that data.
+db.sqlite3-shm
+db.sqlite3-wal

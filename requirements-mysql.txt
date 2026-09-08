@@ -1,0 +1,10 @@
+# Local development against MySQL (DB_ENGINE=mysql).
+#
+#   pip install -r requirements-mysql.txt
+#
+# mysqlclient needs a C compiler and the MySQL client headers. It is kept out
+# of requirements.txt so a shared host, which runs on SQLite and usually has
+# neither, can install the app without failing.
+-r requirements.txt
+
+mysqlclient==2.1.1

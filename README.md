@@ -19,7 +19,8 @@ all behind role-based access control.
 - [Running the server](#running-the-server)
 - [Demo data and sign-in accounts](#demo-data-and-sign-in-accounts)
 - [User roles and permissions](#user-roles-and-permissions)
-- [Registration and approval](#registration-and-approval)
+- [Accounts and access](#accounts-and-access)
+- [Deploying to a shared host (cPanel)](#deploying-to-a-shared-host-cpanel)
 - [Product Entry Automation](#product-entry-automation)
 - [The customer number workflow](#the-customer-number-workflow)
 - [Reports and the group chart](#reports-and-the-group-chart)
@@ -248,6 +249,67 @@ Django admin, for maintenance only, is at `/admin/`.
 
 ---
 
+## Deploying to a shared host (cPanel)
+
+The repository is deployment-ready: `passenger_wsgi.py` is the Passenger entry
+point and `.cpanel.yml` carries the deploy steps.
+
+### One-time setup
+
+1. **cPanel → Setup Python App** — create the app (Python 3.9), note the path
+   it prints for the virtual environment.
+2. Open `.cpanel.yml` and set `VENV` to that path.
+3. **cPanel → Git™ Version Control** — clone the repository *into the
+   application directory* so a pull updates the running code in place. For a
+   private repository, add the cPanel SSH key under
+   **GitHub → repo → Settings → Deploy keys**.
+4. Create `.env` in the application directory — copy the production block at
+   the bottom of `.env.example` and put a real generated key in it:
+
+   ```bash
+   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+   ```
+
+### Every deploy
+
+**cPanel → Git Version Control → Manage → Pull or Deploy**:
+**Update from Remote**, then **Deploy HEAD Commit**.
+
+`.cpanel.yml` then runs, in order:
+
+```
+pip install -r requirements.txt      # no compiler needed; see below
+manage.py migrate --noinput          # schema
+manage.py ensure_admin               # somebody can sign in
+manage.py collectstatic --noinput    # CSS and JS
+touch tmp/restart.txt                # Passenger reloads
+```
+
+### Things that bite on a shared host
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `pip install` fails building a wheel | `mysqlclient` needs a compiler | It is in `requirements-mysql.txt`, not `requirements.txt`. Install only the latter on the host. |
+| Site loads but has no styling | `collectstatic` not run, or nothing serving `/static/` | The deploy runs it. WhiteNoise then serves the files, so no Apache alias is needed. |
+| `DisallowedHost` | Domain missing from `ALLOWED_HOSTS` | Set `DJANGO_ALLOWED_HOSTS` in `.env`. The default already includes `pos.odelltech.com`. |
+| Endless redirect loop | Django forcing HTTPS behind a proxy that does not say so | `SECURE_SSL_REDIRECT` is **off** by default for this reason. Leave it off unless you have confirmed HTTPS works. |
+| Login says the password is wrong | The host is reading a different, empty database | `cat .env` and check `DB_ENGINE` / `SQLITE_NAME`, then run `manage.py ensure_admin`. |
+| Sales pages 500 after an update | Migration not applied | `manage.py migrate` |
+
+### The database in this repository
+
+`db.sqlite3` is committed so a clone runs immediately with a working catalogue.
+That has two consequences worth knowing:
+
+- **Pulling overwrites the host's database with the one from the repository.**
+  Back it up first: `cp db.sqlite3 db.sqlite3.backup-$(date +%F)`.
+- **Anyone who can read the repository can read the data**, including password
+  hashes and customer phone numbers. Keep the repository **private**, or
+  remove the file from it (`git rm --cached db.sqlite3`, add it to
+  `.gitignore`) and let `migrate` + `ensure_admin` build a fresh one instead.
+
+---
+
 ## Demo data and sign-in accounts
 
 ```bash
@@ -260,13 +322,17 @@ out-of-stock items), 5 customers, 2 discounts, and sales spread over the last 45
 Re-running is safe: records are updated in place, and sample sales are skipped once the
 store has traded.
 
-| Username | Password | Role |
+| Email | Password | Role |
 |---|---|---|
-| `admin` | `Pos@12345` | Administrator |
-| `manager` | `Pos@12345` | Manager |
-| `cashier` | `Pos@12345` | Cashier |
-| `cashier2` | `Pos@12345` | Cashier |
-| `stock` | `Pos@12345` | Inventory Staff |
+| `odelltech@gmail.com` | `Pos@12345` | Administrator |
+| `manager@odelltech.example` | `Pos@12345` | Manager |
+| `cashier@odelltech.example` | `Pos@12345` | Cashier |
+| `cashier2@odelltech.example` | `Pos@12345` | Cashier |
+| `stock@odelltech.example` | `Pos@12345` | Inventory Staff |
+
+Sign in with the **email address**, not a username. Only the administrator
+account is created automatically on a fresh deploy (`ensure_admin`); the rest
+come from `seed_demo`.
 
 > These are development credentials. Change them before any real deployment.
 
@@ -300,33 +366,61 @@ Unauthorised access returns a styled 403 page, never a traceback.
 
 ---
 
-## Registration and approval
+## Accounts and access
 
-The login page offers **Create an account** so staff can sign themselves up.
+**There is no public sign-up.** A till that lets a visitor mint themselves an
+account is a privilege-escalation hole, so the registration route was removed
+outright — `pos:register` does not resolve, and `pos/tests/test_registration.py`
+fails if anyone puts it back.
 
-An open registration form on a POS system is a privilege-escalation risk, so two
-things are non-negotiable in `RegistrationForm`:
+Accounts are created by an Administrator or Manager under
+**Employees → Add Employee**. That form sets the name, email, phone, role and
+password. Two details are handled for you and never typed:
 
-1. **The role is never read from the submitted form.** A self-registered account is
-   always a **Cashier** — the lowest-privilege role. Posting `role=ADMIN`,
-   `is_staff=on` or `is_superuser=on` changes nothing; there is a test for exactly
-   that.
-2. **New accounts are disabled until approved.** They appear under
-   *Employees → Awaiting approval*, where an Administrator or Manager clicks
-   **Approve**. Until then the account cannot sign in.
+| Field | How it is set |
+|---|---|
+| `employee_id` | Generated server-side (`EMP-001`, `EMP-002`, …) |
+| `username` | Derived from the email address; never shown in the interface |
 
-Both behaviours are switches under **Settings**:
+Staff sign in with their **email address or phone number** — see
+[The sign-in identifier](#the-sign-in-identifier) below.
 
-| Setting | Default | Effect |
-|---|---|---|
-| `allow_self_registration` | On | Shows the sign-up link on the login page |
-| `require_registration_approval` | On | New accounts start disabled |
+### The first administrator
 
-Turning approval off gives instant access on sign-up. Only do that on a trusted
-network — anyone who can reach the login page can then create a working till account.
+A freshly deployed database has nobody in it. `ensure_admin` fills that gap and
+runs automatically on every deploy:
 
-Anyone needing Manager, Inventory Staff or Administrator rights must be created (or
-promoted) by an Administrator through **Employees → Add Employee**.
+```bash
+python manage.py ensure_admin
+```
+
+| | |
+|---|---|
+| Email | `odelltech@gmail.com` |
+| Password | `Pos@12345` |
+
+It is idempotent: on a database that already has the account it changes
+nothing, and it will **not** overwrite a password someone has since changed.
+Pass `--reset-password` when that is actually what you want, or set
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env` to use different credentials.
+
+Change the password after the first sign-in: your name (top right) →
+**Change password**.
+
+### The sign-in identifier
+
+The login form asks for **Email or Phone**, never a username, and there is no
+role selector — the role is read from the account once the password checks out.
+
+Resolution order:
+
+1. The value contains `@` → matched against `email` (case-insensitive)
+2. Otherwise → matched against `phone`, in any of the stored spellings
+   (`01712345678`, `+8801712345678`, `8801712345678`)
+3. Failing both → matched against `username`, so no older account is locked out
+
+A phone number shared by two accounts is refused with a clear message rather
+than picking one at random.
 
 ---
 
