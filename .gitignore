@@ -24,3 +24,4 @@ DEPLOY_PROMPT.md
 
 # Bootstrap lock, created at runtime while the first worker sets up.
 .bootstrap.lock
+CLAUDE_PROMPT.md
