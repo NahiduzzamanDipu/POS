@@ -21,3 +21,6 @@ db.sqlite3
 
 # Deployment prompt: contains a generated signing key.
 DEPLOY_PROMPT.md
+
+# Bootstrap lock, created at runtime while the first worker sets up.
+.bootstrap.lock

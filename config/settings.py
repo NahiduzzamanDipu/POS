@@ -16,14 +16,25 @@ def env_bool(name, default=False):
     return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-DEBUG = env_bool('DJANGO_DEBUG', True)
+# Off by default. This project is deployed by syncing the repository to a
+# public host where no .env may exist; defaulting to True there would put a
+# debug page -- settings, database paths, stack traces -- in front of visitors.
+# Local development turns it on in .env.
+DEBUG = env_bool('DJANGO_DEBUG', False)
 
 
-def _read_or_create_dev_key():
-    """A stable signing key for local work, kept out of version control.
+def _read_or_create_key():
+    """A signing key that belongs to this installation alone.
 
-    Generated on first run and cached in `.secret_key` so restarting the
-    server does not sign every developer out. Never used when DEBUG is off.
+    Generated on first run and kept in `.secret_key` beside the code, which is
+    git-ignored. That file is the secret; the repository never contains one.
+
+    Generating rather than refusing is deliberate, including in production.
+    The danger of a committed key is that everyone who can read the repository
+    can forge an administrator session; a key generated here is unique to this
+    server and no more guessable than one typed into .env by hand. Refusing to
+    boot would instead leave the site permanently down on hosting where nobody
+    can create .env, which is how this project is deployed.
     """
     from django.core.management.utils import get_random_secret_key
 
@@ -38,29 +49,27 @@ def _read_or_create_dev_key():
     key = get_random_secret_key()
     try:
         key_file.write_text(key, encoding='utf-8')
+        try:
+            os.chmod(key_file, 0o600)          # owner only, where that applies
+        except OSError:
+            pass
     except OSError:
-        # Read-only checkout: fall back to a per-process key. Sessions will
-        # not survive a restart, which is acceptable for development.
-        pass
+        # Read-only checkout: use a key for this process only. Sessions will
+        # not survive a restart, but the site still runs.
+        import warnings
+
+        warnings.warn(
+            'Could not write .secret_key, so a temporary signing key is in '
+            'use and sessions will end whenever the application restarts. '
+            'Set DJANGO_SECRET_KEY in .env, or make the application directory '
+            'writable.',
+            RuntimeWarning,
+        )
     return key
 
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip()
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip() or _read_or_create_key()
 
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = _read_or_create_dev_key()
-    else:
-        raise ImproperlyConfigured(
-            'DJANGO_SECRET_KEY is not set.\n\n'
-            'Refusing to start: with DEBUG off this application signs session '
-            'cookies, password-reset links and CSRF tokens with this key. '
-            'Running on a guessable or shared key would let anyone forge an '
-            'administrator session.\n\n'
-            'Generate one and put it in .env:\n'
-            '  python -c "from django.core.management.utils import '
-            'get_random_secret_key; print(get_random_secret_key())"'
-        )
 
 # The default covers local work plus the production domain, so the site still
 # answers if a freshly deployed host has no .env yet. Override it in .env for
@@ -232,6 +241,12 @@ else:
     # not used: it hard-fails on a single missing reference, which is a poor
     # trade on a host where nobody is watching the deploy log.
     WHITENOISE_MAX_AGE = 60 * 60 * 24 * 7
+    # Serve straight from each app's static/ directory, so the site is styled
+    # even where `collectstatic` never runs -- which is the case on hosting
+    # that only syncs files. collectstatic still works and is still faster;
+    # this is the fallback, not a replacement.
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = DEBUG
 
 
 # Sessions -- cashiers share terminals, so sessions must not outlive a shift.

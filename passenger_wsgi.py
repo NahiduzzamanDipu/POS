@@ -18,4 +18,11 @@ if BASE_DIR not in sys.path:
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
+# Hosting that only syncs files runs no deploy step, so the application brings
+# itself up: migrations, then the first administrator account. Idempotent, and
+# it never raises -- see config/bootstrap.py.
+from config.bootstrap import prepare           # noqa: E402
+
+prepare()
+
 from config.wsgi import application            # noqa: E402,F401
