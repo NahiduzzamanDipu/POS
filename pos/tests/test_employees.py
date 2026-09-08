@@ -1,5 +1,8 @@
 """Automatic employee IDs and the change-password flow."""
 
+from unittest import skipUnless
+
+from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 
@@ -143,10 +146,21 @@ class AdminCreatedEmployeeIdTests(TestCase):
 
 
 class ConcurrentEmployeeIdTests(TransactionTestCase):
-    """Ids must stay unique when registrations overlap."""
+    """Ids must stay unique when registrations overlap.
+
+    Skipped on SQLite, which takes a database-wide write lock instead of
+    locking rows: eight threads writing at once raise "database is locked"
+    rather than racing. There is nothing to prove there, because SQLite has
+    already serialised the writes this test is about. The guarantee matters on
+    MySQL, which is where it runs.
+    """
 
     reset_sequences = True
 
+    @skipUnless(
+        connection.vendor == 'mysql',
+        'row-level locking; SQLite serialises writers so the race cannot occur',
+    )
     def test_parallel_creation_yields_unique_ids(self):
         import threading
 
