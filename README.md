@@ -296,17 +296,53 @@ touch tmp/restart.txt                # Passenger reloads
 | Login says the password is wrong | The host is reading a different, empty database | `cat .env` and check `DB_ENGINE` / `SQLITE_NAME`, then run `manage.py ensure_admin`. |
 | Sales pages 500 after an update | Migration not applied | `manage.py migrate` |
 
-### The database in this repository
+### The database is not in this repository
 
-`db.sqlite3` is committed so a clone runs immediately with a working catalogue.
-That has two consequences worth knowing:
+`db.sqlite3` is git-ignored, deliberately. A committed database carries every
+password hash and customer phone number, and pulling it would overwrite
+whatever the live site holds.
 
-- **Pulling overwrites the host's database with the one from the repository.**
-  Back it up first: `cp db.sqlite3 db.sqlite3.backup-$(date +%F)`.
-- **Anyone who can read the repository can read the data**, including password
-  hashes and customer phone numbers. Keep the repository **private**, or
-  remove the file from it (`git rm --cached db.sqlite3`, add it to
-  `.gitignore`) and let `migrate` + `ensure_admin` build a fresh one instead.
+So a fresh deploy starts empty and builds its own:
+
+```
+migrate          -> creates the schema
+ensure_admin     -> creates the one account needed to sign in
+```
+
+Nothing else is created. Add your own catalogue through **Products**, or load
+sample data on a test install with `manage.py seed_demo`.
+
+The live database therefore belongs to the server and survives every deploy.
+Back it up on a schedule; nothing in this repository will do it for you:
+
+```bash
+cp db.sqlite3 db.sqlite3.backup-$(date +%F)
+```
+
+---
+
+## Security
+
+What an internet-facing till needs, and where it lives:
+
+| Concern | How it is handled |
+|---|---|
+| Signing key | Never committed. Read from `DJANGO_SECRET_KEY`; with `DEBUG=False` and no key the app **refuses to start** rather than run on a guessable one. Development generates `.secret_key` locally, git-ignored. |
+| Password guessing | 10 failed attempts from one address in 15 minutes locks that address out for the rest of the window. The lock refuses the *correct* password too, so it never confirms a lucky guess. |
+| Default password | An administrator still using the published default is warned on every sign-in. |
+| Password storage | Django's hashers (PBKDF2). Validators reject short, common and numeric-only passwords. |
+| Sessions | HttpOnly, `Secure` in production, expire with the browser and after 8 hours. |
+| Access control | Every view declares the capability it needs; the sidebar is built from the same map, so no one is shown a link they cannot open. Unauthorised access returns a styled 403. |
+| Clickjacking / sniffing | `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`. |
+| SQL injection | The ORM everywhere; no raw SQL in the application. |
+| Customer privacy | Staff screens show the customer number only -- never the name, email or address, including in reports and on invoices. |
+| Cost price | Visible only to roles holding `product.price`; a cashier never sees the margin. |
+
+Before going live:
+
+1. Put a generated `DJANGO_SECRET_KEY` in `.env` and set `DJANGO_DEBUG=False`.
+2. Sign in and change the administrator password immediately.
+3. Keep the repository **private** if you ever commit anything from the shop.
 
 ---
 

@@ -21,7 +21,8 @@ deployment:
     - $VENV/pip install --upgrade pip
     - $VENV/pip install -r $APPDIR/requirements.txt
 
-    # Schema, then make sure someone can actually sign in, then the assets.
+    # The repository ships no database on purpose, so migrate builds one on
+    # the first deploy and ensure_admin puts an account in it.
     - $VENV/python $APPDIR/manage.py migrate --noinput
     - $VENV/python $APPDIR/manage.py ensure_admin
     - $VENV/python $APPDIR/manage.py collectstatic --noinput --clear

@@ -16,12 +16,51 @@ def env_bool(name, default=False):
     return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-0hii+htqbqcvfqn-9ejw*p3g+deg_&go93)9^z$&z%#)zp^xds',
-)
-
 DEBUG = env_bool('DJANGO_DEBUG', True)
+
+
+def _read_or_create_dev_key():
+    """A stable signing key for local work, kept out of version control.
+
+    Generated on first run and cached in `.secret_key` so restarting the
+    server does not sign every developer out. Never used when DEBUG is off.
+    """
+    from django.core.management.utils import get_random_secret_key
+
+    key_file = BASE_DIR / '.secret_key'
+    try:
+        existing = key_file.read_text(encoding='utf-8').strip()
+        if existing:
+            return existing
+    except OSError:
+        pass
+
+    key = get_random_secret_key()
+    try:
+        key_file.write_text(key, encoding='utf-8')
+    except OSError:
+        # Read-only checkout: fall back to a per-process key. Sessions will
+        # not survive a restart, which is acceptable for development.
+        pass
+    return key
+
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip()
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = _read_or_create_dev_key()
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY is not set.\n\n'
+            'Refusing to start: with DEBUG off this application signs session '
+            'cookies, password-reset links and CSRF tokens with this key. '
+            'Running on a guessable or shared key would let anyone forge an '
+            'administrator session.\n\n'
+            'Generate one and put it in .env:\n'
+            '  python -c "from django.core.management.utils import '
+            'get_random_secret_key; print(get_random_secret_key())"'
+        )
 
 # The default covers local work plus the production domain, so the site still
 # answers if a freshly deployed host has no .env yet. Override it in .env for
@@ -227,16 +266,6 @@ if not DEBUG:
         SECURE_HSTS_SECONDS = 31536000
         SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
-    # A public host must not fall back to the key committed in this file.
-    if SECRET_KEY.startswith('django-insecure-'):
-        import warnings
-
-        warnings.warn(
-            'DJANGO_SECRET_KEY is not set, so the fallback key from '
-            'settings.py is in use. Anyone who can read the repository can '
-            'forge sessions. Set it in .env before going live.',
-            RuntimeWarning,
-        )
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
