@@ -126,43 +126,63 @@ def deny(request, message):
 
 
 # Navigation ---------------------------------------------------------------
-# The six reports, shown as a submenu under Reports.
+# The report centre. Daily/Monthly/Yearly are gone: one Sales Report with an
+# inclusive From/To filter covers all three, so there is a single place to
+# answer "how did we trade over this period?".
 REPORT_LINKS = [
-    ('Daily Report', 'pos:report_daily'),
-    ('Monthly Report', 'pos:report_monthly'),
-    ('Yearly Report', 'pos:report_yearly'),
-    ('Customer Report', 'pos:report_customers'),
-    ('Inventory Report', 'pos:report_inventory'),
-    ('Product Performance', 'pos:report_products'),
+    ('Sales Report', 'pos:report_sales', 'i-chart'),
+    ('Inventory Report', 'pos:report_inventory', 'i-layers'),
+    ('Product Performance', 'pos:report_products', 'i-box'),
+    ('Supplier Report', 'pos:report_suppliers', 'i-truck'),
+    ('Cash Flow', 'pos:report_cashflow', 'i-wallet'),
+    ('User Wise Collection', 'pos:report_collections', 'i-badge-user'),
+    ('Profits', 'pos:report_profit', 'i-wallet'),
+    ('Customer Report', 'pos:report_customers', 'i-users'),
 ]
 
-# (label, url name, capability). Order matches the approved UI design.
+# (group, label, url name, capability, icon). Order matches the approved UI.
 NAV_DEFINITION = [
-    ('Dashboard', 'pos:dashboard', None),
-    ('New Sale', 'pos:pos_terminal', POS_SELL),
-    ('Products', 'pos:product_list', PRODUCT_VIEW),
-    ('Inventory', 'pos:inventory', INVENTORY_VIEW),
-    ('Categories', 'pos:category_list', CATEGORY_MANAGE),
-    ('Suppliers', 'pos:supplier_list', SUPPLIER_MANAGE),
-    ('Customers', 'pos:customer_list', CUSTOMER_VIEW),
-    ('Employees', 'pos:employee_list', EMPLOYEE_MANAGE),
-    ('Reports', 'pos:reports', REPORT_VIEW),
-    ('Transactions', 'pos:sale_list', SALE_VIEW_OWN),
-    ('Settings', 'pos:settings', SETTINGS_MANAGE),
+    ('Main', 'Dashboard', 'pos:dashboard', None, 'i-dashboard'),
+    ('Main', 'New Sale', 'pos:pos_terminal', POS_SELL, 'i-sale'),
+    ('Catalogue', 'Products', 'pos:product_list', PRODUCT_VIEW, 'i-box'),
+    ('Catalogue', 'Inventory', 'pos:inventory', INVENTORY_VIEW, 'i-layers'),
+    ('Catalogue', 'Categories', 'pos:category_list', CATEGORY_MANAGE, 'i-tag'),
+    ('Catalogue', 'Suppliers', 'pos:supplier_list', SUPPLIER_MANAGE, 'i-truck'),
+    ('People', 'Customers', 'pos:customer_list', CUSTOMER_VIEW, 'i-users'),
+    ('People', 'Employees', 'pos:employee_list', EMPLOYEE_MANAGE, 'i-badge-user'),
+    ('Insights', 'Reports', 'pos:reports', REPORT_VIEW, 'i-chart'),
+    ('Insights', 'Transactions', 'pos:sale_list', SALE_VIEW_OWN, 'i-receipt'),
+    ('System', 'Settings', 'pos:settings', SETTINGS_MANAGE, 'i-settings'),
 ]
 
 
 def navigation_for(user):
+    """Sidebar entries this user may actually open.
+
+    Returned flat, each carrying its ``group`` so the template can render the
+    section headings with ``{% ifchanged %}`` without a second data shape.
+    """
     caps = capabilities_for(user)
     items = []
-    for label, url_name, capability in NAV_DEFINITION:
+    for group, label, url_name, capability, icon in NAV_DEFINITION:
         if capability is not None and capability not in caps:
             continue
-        item = {'label': label, 'url': reverse(url_name), 'url_name': url_name}
+        item = {
+            'group': group,
+            'label': label,
+            'url': reverse(url_name),
+            'url_name': url_name,
+            'icon': icon,
+        }
         if url_name == 'pos:reports':
             item['children'] = [
-                {'label': child_label, 'url': reverse(child_url), 'url_name': child_url}
-                for child_label, child_url in REPORT_LINKS
+                {
+                    'label': child_label,
+                    'url': reverse(child_url),
+                    'url_name': child_url,
+                    'icon': child_icon,
+                }
+                for child_label, child_url, child_icon in REPORT_LINKS
             ]
         items.append(item)
     return items

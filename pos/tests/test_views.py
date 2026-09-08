@@ -45,9 +45,10 @@ class PageRenderTests(TestCase):
             'inventory', 'stock_adjust',
             'product_import',
             'stock_movements', 'purchase_list', 'purchase_create', 'sale_list',
-            'return_list', 'reports', 'report_monthly',
+            'return_list', 'reports', 'report_sales',
             'report_inventory', 'report_products', 'report_customers',
-            'report_daily', 'report_yearly',
+            'report_suppliers', 'report_cashflow', 'report_collections',
+            'report_profit',
             'settings', 'activity_log',
         ]
         for name in names:
@@ -96,15 +97,15 @@ class ReportTests(TestCase):
         for _ in range(3):
             create_sale(cashier=self.manager, items=[(self.product.pk, 2)])
 
-    def test_daily_report_totals_match_the_sales(self):
-        response = self.client.get(reverse('pos:report_daily'))
+    def test_sales_report_totals_match_the_sales(self):
+        response = self.client.get(reverse('pos:report_sales'))
         totals = response.context['totals']
         self.assertEqual(totals['transactions'], 3)
         self.assertEqual(totals['revenue'], Decimal('630.00'))
         self.assertEqual(totals['tax'], Decimal('30.00'))
 
-    def test_daily_report_exports_csv(self):
-        response = self.client.get(reverse('pos:report_daily'), {'export': 'csv'})
+    def test_sales_report_exports_csv(self):
+        response = self.client.get(reverse('pos:report_sales'), {'export': 'csv'})
         self.assertEqual(response['Content-Type'], 'text/csv')
         self.assertIn('attachment;', response['Content-Disposition'])
         self.assertIn('INV-', response.content.decode())
@@ -130,8 +131,25 @@ class ReportTests(TestCase):
         self.assertEqual(response.context['best'][0]['units'], 6)
 
     def test_date_filter_excludes_out_of_range_sales(self):
-        response = self.client.get(reverse('pos:report_daily'), {'date': '2020-01-15'})
+        response = self.client.get(
+            reverse('pos:report_sales'), {'from': '2020-01-01', 'to': '2020-01-15'}
+        )
         self.assertEqual(response.context['totals']['transactions'], 0)
+
+    def test_the_range_filter_is_inclusive_of_both_ends(self):
+        today = timezone.localdate().isoformat()
+        response = self.client.get(
+            reverse('pos:report_sales'), {'from': today, 'to': today}
+        )
+        self.assertEqual(response.context['totals']['transactions'], 3)
+
+    def test_the_legacy_report_urls_redirect_into_the_sales_report(self):
+        """Daily/Monthly/Yearly were folded into one ranged report."""
+        for name in ('report_daily', 'report_monthly', 'report_yearly'):
+            with self.subTest(report=name):
+                response = self.client.get(reverse(f'pos:{name}'))
+                self.assertEqual(response.status_code, 302)
+                self.assertIn(reverse('pos:report_sales'), response['Location'])
 
 
 class CustomerAndSettingsTests(TestCase):
@@ -192,7 +210,7 @@ class CustomerAndSettingsTests(TestCase):
         self.client.post(
             reverse('pos:employee_create'),
             {
-                'username': 'newstaff', 'first_name': 'New', 'last_name': 'Staff',
+                'first_name': 'New', 'last_name': 'Staff',
                 'email': 'new@example.com', 'phone': '', 'employee_id': 'EMP-99',
                 'position': 'Cashier', 'role': Role.CASHIER, 'is_active': 'on',
                 'password1': 'Str0ngPass!', 'password2': 'Str0ngPass!',
@@ -200,15 +218,22 @@ class CustomerAndSettingsTests(TestCase):
         )
         from pos.models import User
 
-        staff = User.objects.get(username='newstaff')
+        staff = User.objects.get(email='new@example.com')
         self.assertNotEqual(staff.password, 'Str0ngPass!')
         self.assertTrue(staff.check_password('Str0ngPass!'))
+
+    def test_the_employee_list_never_shows_a_username(self):
+        from pos.models import User
+
+        User.objects.filter(pk=self.admin.pk).update(username='secret.handle')
+        response = self.client.get(reverse('pos:employee_list'))
+        self.assertNotContains(response, 'secret.handle')
 
     def test_mismatched_passwords_are_rejected(self):
         self.client.post(
             reverse('pos:employee_create'),
             {
-                'username': 'nope', 'first_name': '', 'last_name': '', 'email': '',
+                'first_name': '', 'last_name': '', 'email': '',
                 'phone': '', 'employee_id': '', 'position': '', 'role': Role.CASHIER,
                 'is_active': 'on', 'password1': 'Str0ngPass!', 'password2': 'Different!',
             },
@@ -258,9 +283,10 @@ class ArchivedProductVisibilityTests(TestCase):
         self.assertNotContains(response, 'Live Product')
         self.assertContains(response, 'archived')
 
-    def test_the_sales_screen_never_offers_archived(self):
+    def test_the_sales_screen_renders_no_catalogue(self):
+        """The till searches; it does not list stock. Nothing to leak."""
         response = self.client.get(reverse('pos:pos_terminal'))
-        self.assertContains(response, 'Live Product')
+        self.assertNotContains(response, 'Live Product')
         self.assertNotContains(response, 'Retired Product')
 
     def test_the_product_search_api_never_returns_archived(self):

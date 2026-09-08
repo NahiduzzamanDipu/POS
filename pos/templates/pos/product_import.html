@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{% url 'pos:product_import_template' %}">Download template</a>
   <a class="btn btn--ghost" href="{% url 'pos:product_list' %}">All products</a>
 {% endblock %}
@@ -47,7 +47,7 @@
     <section class="card">
       <div class="card__head">
         <h2>Preview</h2>
-        <div class="topbar__spacer"></div>
+        <div class="spacer"></div>
         <span class="muted small">Rows with errors are skipped, never guessed at.</span>
       </div>
       <div class="card__body card__body--flush">
@@ -64,7 +64,7 @@
                 <tr>
                   <td class="muted">{{ row.number }}</td>
                   <td>
-                    <div class="product-cell">
+                    <div class="media-cell">
                       {% if row.data.image_url %}
                         <img class="product-thumb" src="{{ row.data.image_url }}" alt="" loading="lazy">
                       {% endif %}

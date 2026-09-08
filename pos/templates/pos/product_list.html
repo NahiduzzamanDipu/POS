@@ -1,19 +1,32 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {{ match_count|intcomma }} product{{ match_count|pluralize }} matching the current filter
+  </div>
+{% endblock %}
+
+{% block page_actions %}
   {% if 'product.manage' in capabilities %}
-    <a class="btn btn--ghost" href="{% url 'pos:product_import' %}">&#9889; Bulk Add Products</a>
-    <a class="btn" href="{% url 'pos:product_create' %}">Add Product</a>
+    <a class="btn btn--ghost" href="{% url 'pos:product_import' %}">
+      {% include "pos/_icon.html" with name="upload" %} Bulk Add
+    </a>
+    <a class="btn" href="{% url 'pos:product_create' %}">
+      {% include "pos/_icon.html" with name="plus" %} Add Product
+    </a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Search</label>
-    <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
-           placeholder="Name, SKU, barcode or brand">
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Name, SKU, barcode or brand">
+    </div>
   </div>
   <div class="field">
     <label for="category">Category</label>
@@ -25,7 +38,7 @@
     </select>
   </div>
   <div class="field">
-    <label for="status">Status</label>
+    <label for="status">Stock status</label>
     <select id="status" name="status" class="select">
       <option value="">All products</option>
       <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Low stock</option>
@@ -37,14 +50,24 @@
       {% endif %}
     </select>
   </div>
-  <button type="submit" class="btn btn--ghost">Filter</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:product_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 {% if selected_status == 'archived' %}
-  <div class="alert alert--warning">
-    Showing <strong>archived</strong> products. These are retired from the catalogue and
-    cannot be sold &mdash; they are kept only so past invoices and reports stay correct.
-    <a href="{% url 'pos:product_list' %}">Back to the catalogue</a>
+  <div class="alert alert--warning" style="margin-bottom:20px">
+    {% include "pos/_icon.html" with name="alert-triangle" %}
+    <div>
+      Showing <strong>archived</strong> products. These are retired from the catalogue and
+      cannot be sold &mdash; they are kept only so past invoices and reports stay correct.
+      <a href="{% url 'pos:product_list' %}">Back to the catalogue</a>
+    </div>
   </div>
 {% endif %}
 
@@ -63,13 +86,13 @@
       Select all {{ match_count }} matching this filter
     </button>
     <button type="button" class="btn btn--ghost btn--sm" id="bulk-clear">Clear</button>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <button type="submit" name="action" value="activate" class="btn btn--success btn--sm">
-      Activate
+      {% include "pos/_icon.html" with name="check" cls="icon--sm" %} Activate
     </button>
     <button type="submit" name="action" value="deactivate" class="btn btn--danger btn--sm"
             id="bulk-deactivate">
-      Deactivate
+      {% include "pos/_icon.html" with name="trash" cls="icon--sm" %} Deactivate
     </button>
   </div>
 {% endif %}
@@ -86,8 +109,10 @@
               </th>
             {% endif %}
             <th>Product</th><th>SKU</th><th>Category</th>
-            <th class="num">Price</th><th class="num">Discount</th>
-            <th class="num">Final Price</th><th class="num">Stock</th><th>Status</th><th></th>
+            {% if 'product.price' in capabilities %}<th class="num">Cost Price</th>{% endif %}
+            <th class="num">Selling Price</th><th class="num">Discount</th>
+            <th class="num">Final Price</th><th class="num">Stock</th><th>Status</th>
+            <th class="num">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -100,50 +125,63 @@
                 </td>
               {% endif %}
               <td>
-                <div class="product-cell">
+                <div class="media-cell">
                   {% include "pos/_product_thumb.html" with product=product %}
-                  <div>
-                    <a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
-                    {% if product.brand %}<div class="muted small">{{ product.brand }}</div>{% endif %}
+                  <div class="media-cell__text">
+                    <a class="media-cell__title" href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                    {% if product.brand %}<div class="media-cell__sub">{{ product.brand }}</div>{% endif %}
                   </div>
                 </div>
               </td>
               <td class="nowrap muted">{{ product.sku }}</td>
-              <td>{{ product.category.name }}</td>
+              <td><span class="badge">{{ product.category.name }}</span></td>
+              {# Cost is what we paid the supplier: internal margin data, so it #}
+              {# is shown only to roles allowed to see and set pricing (BRL-4). #}
+              {% if 'product.price' in capabilities %}
+                <td class="num muted">
+                  {% if product.cost_price > 0 %}
+                    {{ currency }} {{ product.cost_price|floatformat:2|intcomma }}
+                  {% else %}
+                    {# No cost means no margin can be worked out for this line. #}
+                    <span class="badge badge--warn" title="Set a cost price so profit can be calculated">not set</span>
+                  {% endif %}
+                </td>
+              {% endif %}
               <td class="num">{{ currency }} {{ product.selling_price|floatformat:2|intcomma }}</td>
               <td class="num">
                 {% if product.discount_percent > 0 %}
                   <span class="badge badge--success">{{ product.discount_percent|floatformat:"-2" }}%</span>
-                {% else %}<span class="muted">&mdash;</span>{% endif %}
+                {% else %}<span class="soft">&mdash;</span>{% endif %}
               </td>
-              <td class="num"><strong>{{ currency }} {{ product.final_price|floatformat:2|intcomma }}</strong></td>
-              <td class="num">{{ product.stock_quantity }}</td>
+              <td class="num strong">{{ currency }} {{ product.final_price|floatformat:2|intcomma }}</td>
+              <td class="num">{{ product.stock_quantity|intcomma }}</td>
               <td>
                 {% if not product.is_active %}
                   <span class="badge">Archived</span>
                 {% elif product.stock_status == 'out' %}
-                  <span class="badge badge--danger">Out of Stock</span>
+                  <span class="badge badge--danger"><span class="badge__dot"></span>Out of Stock</span>
                 {% elif product.stock_status == 'low' %}
-                  <span class="badge badge--warn">Low Stock</span>
+                  <span class="badge badge--warn"><span class="badge__dot"></span>Low Stock</span>
                 {% else %}
-                  <span class="badge badge--success">In Stock</span>
+                  <span class="badge badge--success"><span class="badge__dot"></span>In Stock</span>
                 {% endif %}
               </td>
-              <td class="num nowrap">
-                {% if 'product.manage' in capabilities %}
-                  <a class="btn btn--ghost btn--sm" href="{% url 'pos:product_update' product.pk %}">Edit</a>
-                  <form method="post" action="{% url 'pos:product_toggle' product.pk %}" style="display:inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn--ghost btn--sm">
-                      {% if product.is_active %}Deactivate{% else %}Activate{% endif %}
-                    </button>
-                  </form>
-                {% endif %}
+              <td class="num">
+                <div class="act-group">
+                  <a class="act act--view" href="{% url 'pos:product_detail' product.pk %}" title="View">
+                    {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                  </a>
+                  {% if 'product.manage' in capabilities %}
+                    <a class="act act--edit" href="{% url 'pos:product_update' product.pk %}" title="Edit">
+                      {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
+                    </a>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="9">
-              <div class="empty"><strong>No products found</strong>Adjust the filters or add a product.</div>
+            <tr><td colspan="{% if 'product.price' in capabilities %}11{% else %}10{% endif %}">
+              {% include "pos/_empty.html" with title="No products found" hint="Adjust the filters, or add a product to the catalogue." icon="box" %}
             </td></tr>
           {% endfor %}
         </tbody>

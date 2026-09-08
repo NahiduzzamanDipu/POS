@@ -1,25 +1,67 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn btn--ghost" href="{% url 'pos:report_customers' %}">Customer Report</a>
+{% comment %}
+Privacy rule (BR-024): staff screens identify a customer by their number and
+what they have spent. Name, email and address are never listed here, even
+though the records hold them.
+{% endcomment %}
+
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    Identified by customer number only &mdash; names and contact details stay private
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  {% if 'report.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:report_customers' %}">
+      {% include "pos/_icon.html" with name="chart" %} Customer Report
+    </a>
+  {% endif %}
+  {% if 'customer.manage' in capabilities %}
+    <a class="btn" href="{% url 'pos:customer_create' %}">
+      {% include "pos/_icon.html" with name="plus" %} Add Customer
+    </a>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Customer numbers</div>
-    <div class="stat__value stat__value--plain">{{ page_obj.paginator.count|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">With purchases</div>
-    <div class="stat__value stat__value--plain">{{ buyer_count|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Total shopping</div>
-    <div class="stat__value">{{ currency }} {{ total_spend|floatformat:2|intcomma }}</div></div>
+  <div class="stat stat--neutral">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="users" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Customer numbers</div>
+      <div class="stat__value">{{ page_obj.paginator.count|intcomma }}</div>
+      <div class="stat__meta">Matching this filter</div>
+    </div>
+  </div>
+  <div class="stat stat--success">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="check-circle" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">With purchases</div>
+      <div class="stat__value">{{ buyer_count|intcomma }}</div>
+      <div class="stat__meta">Earn the returning-customer discount</div>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Total shopping</div>
+      <div class="stat__value">{{ currency }} {{ total_spend|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">Lifetime, across these numbers</div>
+    </div>
+  </div>
 </div>
 
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Customer number</label>
-    <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
-           placeholder="01XXXXXXXXX" inputmode="numeric">
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="phone" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="01XXXXXXXXX" inputmode="numeric">
+    </div>
   </div>
   <div class="field">
     <label for="buyers">Show</label>
@@ -28,13 +70,20 @@
       <option value="1" {% if only_buyers %}selected{% endif %}>With purchases only</option>
     </select>
   </div>
-  <button type="submit" class="btn btn--ghost">Search</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:customer_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <section class="card">
   <div class="card__head">
     <h2>Customer Dashboard</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="muted small">Customers appear automatically after a completed sale.</span>
   </div>
   <div class="card__body card__body--flush">
@@ -42,26 +91,44 @@
       <table class="data">
         <thead>
           <tr><th>Customer Number</th><th class="num">Orders</th>
-              <th class="num">Total Shopping</th><th>Status</th></tr>
+              <th class="num">Total Shopping</th><th>Status</th><th class="num">Action</th></tr>
         </thead>
         <tbody>
           {% for customer in page_obj %}
             <tr>
-              <td><a href="{% url 'pos:customer_detail' customer.pk %}">{{ customer.phone }}</a></td>
-              <td class="num">{{ customer.purchase_count }}</td>
-              <td class="num">{{ currency }} {{ customer.purchase_total|floatformat:2|intcomma }}</td>
+              <td>
+                <div class="media-cell">
+                  <span class="avatar">{% include "pos/_icon.html" with name="user" cls="icon--sm" %}</span>
+                  <div class="media-cell__text">
+                    <a class="media-cell__title" href="{% url 'pos:customer_detail' customer.pk %}">{{ customer.phone }}</a>
+                  </div>
+                </div>
+              </td>
+              <td class="num">{{ customer.purchase_count|intcomma }}</td>
+              <td class="num strong">{{ currency }} {{ customer.purchase_total|floatformat:2|intcomma }}</td>
               <td>
                 {% if customer.purchase_count > 0 %}
-                  <span class="badge badge--success">Existing customer</span>
+                  <span class="badge badge--success"><span class="badge__dot"></span>Existing customer</span>
                 {% else %}
-                  <span class="badge">No purchases yet</span>
+                  <span class="badge"><span class="badge__dot"></span>No purchases yet</span>
                 {% endif %}
+              </td>
+              <td class="num">
+                <div class="act-group">
+                  <a class="act act--view" href="{% url 'pos:customer_detail' customer.pk %}" title="Purchase history">
+                    {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                  </a>
+                  {% if 'customer.manage' in capabilities %}
+                    <a class="act act--edit" href="{% url 'pos:customer_update' customer.pk %}" title="Edit">
+                      {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
+                    </a>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="4">
-              <div class="empty"><strong>No customers yet</strong>
-                A customer number is recorded automatically when a sale is completed.</div>
+            <tr><td colspan="5">
+              {% include "pos/_empty.html" with title="No customers yet" hint="A customer number is recorded automatically when a sale is completed." icon="users" %}
             </td></tr>
           {% endfor %}
         </tbody>

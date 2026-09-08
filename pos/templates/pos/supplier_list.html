@@ -1,40 +1,115 @@
 {% extends "pos/base.html" %}
+{% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn btn--ghost" href="{% url 'pos:purchase_list' %}">Purchases</a>
-  <a class="btn" href="{% url 'pos:supplier_create' %}">Add Supplier</a>
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {{ active_count|intcomma }} active supplier{{ active_count|pluralize }}
+    &middot; {{ match_count|intcomma }} shown
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  {% if 'report.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:report_suppliers' %}">
+      {% include "pos/_icon.html" with name="chart" %} Supplier Report
+    </a>
+  {% endif %}
+  <a class="btn btn--ghost" href="{% url 'pos:purchase_list' %}">
+    {% include "pos/_icon.html" with name="inbox" %} Purchases
+  </a>
+  <a class="btn" href="{% url 'pos:supplier_create' %}">
+    {% include "pos/_icon.html" with name="plus" %} Add Supplier
+  </a>
 {% endblock %}
 
 {% block content %}
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Search</label>
-    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Supplier name">
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Supplier, contact, phone or email">
+    </div>
   </div>
-  <button type="submit" class="btn btn--ghost">Search</button>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All suppliers</option>
+      <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:supplier_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Supplier</th><th>Contact</th><th>Phone</th><th>Email</th><th class="num">Products</th><th>Status</th><th></th></tr></thead>
+        <thead>
+          <tr><th>Supplier</th><th>Contact</th><th>Phone</th><th>Email</th>
+              <th class="num">Products</th><th>Status</th><th class="num">Action</th></tr>
+        </thead>
         <tbody>
           {% for supplier in page_obj %}
             <tr>
-              <td><a href="{% url 'pos:supplier_detail' supplier.pk %}">{{ supplier.name }}</a></td>
-              <td>{{ supplier.contact_person|default:"—" }}</td>
-              <td class="nowrap">{{ supplier.phone|default:"—" }}</td>
-              <td class="muted">{{ supplier.email|default:"—" }}</td>
-              <td class="num">{{ supplier.product_count }}</td>
               <td>
-                {% if supplier.is_active %}<span class="badge badge--success">Active</span>
-                {% else %}<span class="badge">Inactive</span>{% endif %}
+                <div class="media-cell">
+                  <span class="avatar avatar--brand">{{ supplier.name|slice:":1"|upper }}</span>
+                  <div class="media-cell__text">
+                    <a class="media-cell__title" href="{% url 'pos:supplier_detail' supplier.pk %}">{{ supplier.name }}</a>
+                    {% if supplier.address %}
+                      <div class="media-cell__sub">{{ supplier.address|truncatechars:40 }}</div>
+                    {% endif %}
+                  </div>
+                </div>
               </td>
-              <td class="num"><a class="btn btn--ghost btn--sm" href="{% url 'pos:supplier_update' supplier.pk %}">Edit</a></td>
+              <td>{{ supplier.contact_person|default:"—" }}</td>
+              <td class="nowrap">
+                {% if supplier.phone %}
+                  <a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a>
+                {% else %}<span class="soft">—</span>{% endif %}
+              </td>
+              <td class="muted">
+                {% if supplier.email %}
+                  <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                {% else %}<span class="soft">—</span>{% endif %}
+              </td>
+              <td class="num">
+                {% if supplier.product_count %}
+                  <a href="{% url 'pos:product_list' %}?q={{ supplier.name|urlencode }}">{{ supplier.product_count|intcomma }}</a>
+                {% else %}<span class="soft">0</span>{% endif %}
+              </td>
+              <td>
+                {% if supplier.is_active %}
+                  <span class="badge badge--success"><span class="badge__dot"></span>Active</span>
+                {% else %}
+                  <span class="badge"><span class="badge__dot"></span>Inactive</span>
+                {% endif %}
+              </td>
+              <td class="num">
+                <div class="act-group">
+                  <a class="act act--view" href="{% url 'pos:supplier_detail' supplier.pk %}" title="View">
+                    {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                  </a>
+                  <a class="act act--edit" href="{% url 'pos:supplier_update' supplier.pk %}" title="Edit">
+                    {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
+                  </a>
+                </div>
+              </td>
             </tr>
           {% empty %}
-            <tr><td colspan="7"><div class="empty"><strong>No suppliers yet</strong>Add the businesses you buy stock from.</div></td></tr>
+            <tr><td colspan="7">
+              {% include "pos/_empty.html" with title="No suppliers yet" hint="Add the businesses you buy stock from." icon="truck" %}
+            </td></tr>
           {% endfor %}
         </tbody>
       </table>

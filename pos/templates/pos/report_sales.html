@@ -1,0 +1,196 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% comment %}
+Trading over an inclusive From/To range (BR-032/033).
+
+Money totals come from Sale, not SaleItem, so voided lines and archived
+products cannot distort them. "Collected" is cash actually kept: tendered
+minus change handed back.
+{% endcomment %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+{% include "pos/_date_filter.html" %}
+
+<div class="stat-grid">
+  <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Total sales</div>
+    <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ days }} day{{ days|pluralize }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Transactions</div>
+    <div class="stat__value stat__value--plain">{{ totals.transactions|intcomma }}</div>
+    <div class="stat__meta">completed sales</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Items sold</div>
+    <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="activity" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Average transaction</div>
+    <div class="stat__value">{{ currency }} {{ average|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="tag" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Discounts given</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">product + customer</div>
+  </div>
+</div>
+  <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="cash" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Collected</div>
+    <div class="stat__value">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">net of change given</div>
+  </div>
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="rotate" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Refunded</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.refunded|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ returns.count|intcomma }} return{{ returns.count|pluralize }}</div>
+  </div>
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Net revenue</div>
+    <div class="stat__value">{{ currency }} {{ totals.net|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">after refunds</div>
+  </div>
+</div>
+</div>
+
+{% include "pos/_chart.html" %}
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card__head"><h2>Payment methods</h2></div>
+    {% if by_method %}
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Method</th><th class="num">Sales</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          {% for row in by_method %}
+            <tr>
+              <td>{{ row.payment_method }}</td>
+              <td class="num">{{ row.count|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.amount|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      {% include "pos/_empty.html" with title="No payments in range" icon="wallet" %}
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card__head"><h2>Top products</h2></div>
+    {% if top_products %}
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Product</th><th class="num">Units</th><th class="num">Revenue</th></tr></thead>
+        <tbody>
+          {% for row in top_products %}
+            <tr>
+              <td>{{ row.product_name }}</td>
+              <td class="num">{{ row.units|intcomma }}</td>
+              <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      {% include "pos/_empty.html" with title="Nothing sold in range" icon="box" %}
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <div class="card__head">
+    <h2>Sales by employee</h2>
+    <div class="spacer"></div>
+    <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
+  </div>
+  {% if by_cashier %}
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Employee</th><th class="num">Transactions</th><th class="num">Revenue</th></tr></thead>
+      <tbody>
+        {% for row in by_cashier %}
+          <tr>
+            <td>
+              {% if row.cashier__first_name or row.cashier__last_name %}
+                {{ row.cashier__first_name }} {{ row.cashier__last_name }}
+              {% else %}<span class="muted">Unnamed</span>{% endif %}
+            </td>
+            <td class="num">{{ row.count|intcomma }}</td>
+            <td class="num">{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  {% else %}
+    {% include "pos/_empty.html" with title="No sales in range" icon="chart" %}
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card__head"><h2>Transactions</h2></div>
+  {% if page_obj %}
+    <div class="table-wrap"><table class="data">
+      <thead>
+        <tr>
+          <th>Invoice</th><th>Date</th><th>Customer</th><th>Employee</th>
+          <th class="num">Discount</th><th class="num">Total</th>
+          <th>Payment</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in page_obj %}
+          <tr>
+            <td><a href="{% url 'pos:sale_detail' sale.pk %}" class="strong">{{ sale.invoice_no }}</a></td>
+            <td>{{ sale.created_at|date:"d M Y, H:i" }}</td>
+            <td>{{ sale.customer_label|default:"Walk-in" }}</td>
+            <td>{{ sale.cashier.display_name }}</td>
+            <td class="num muted">{{ currency }} {{ sale.discount_amount|floatformat:2|intcomma }}</td>
+            <td class="num"><strong>{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</strong></td>
+            <td>{{ sale.get_payment_method_display }}</td>
+            <td>
+              <span class="badge {% if sale.status == 'VOID' %}badge--danger{% else %}badge--success{% endif %}">
+                {{ sale.get_status_display }}
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% include "pos/_pagination.html" %}
+  {% else %}
+    {% include "pos/_empty.html" with title="No transactions in this range" hint="Widen the dates, or record a sale at the till." icon="chart" %}
+  {% endif %}
+</section>
+{% endblock %}

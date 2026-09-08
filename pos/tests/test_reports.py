@@ -112,39 +112,58 @@ class ReportViewTests(TestCase):
         create_sale(cashier=self.cashier, items=[(self.product.pk, 2)],
                     customer_number='01712345678', amount_paid=Decimal('1000'))
 
-    def test_all_four_reports_render(self):
-        for name in ['report_daily', 'report_monthly', 'report_yearly', 'report_customers']:
+    ALL_REPORTS = [
+        'reports', 'report_sales', 'report_inventory', 'report_products',
+        'report_suppliers', 'report_cashflow', 'report_collections',
+        'report_profit', 'report_customers',
+    ]
+
+    def test_every_report_in_the_centre_renders(self):
+        for name in self.ALL_REPORTS:
             with self.subTest(report=name):
                 self.assertEqual(self.client.get(reverse(f'pos:{name}')).status_code, 200)
 
-    def test_daily_report_for_a_chosen_date(self):
+    def test_sales_report_for_a_chosen_day(self):
         response = self.client.get(
-            reverse('pos:report_daily'), {'date': self.today.isoformat()}
+            reverse('pos:report_sales'),
+            {'from': self.today.isoformat(), 'to': self.today.isoformat()},
         )
         self.assertEqual(response.context['totals']['transactions'], 1)
         self.assertEqual(response.context['totals']['revenue'], Decimal('200.00'))
 
-    def test_daily_report_for_a_quiet_date(self):
+    def test_sales_report_for_a_quiet_range(self):
         old = (self.today - timedelta(days=300)).isoformat()
-        response = self.client.get(reverse('pos:report_daily'), {'date': old})
+        response = self.client.get(reverse('pos:report_sales'), {'from': old, 'to': old})
         self.assertEqual(response.context['totals']['transactions'], 0)
 
-    def test_daily_report_rejects_a_future_date(self):
-        future = (self.today + timedelta(days=5)).isoformat()
-        response = self.client.get(reverse('pos:report_daily'), {'date': future})
-        self.assertFalse(response.context['form'].is_valid())
+    def test_a_backwards_range_is_read_the_right_way_round(self):
+        old = (self.today - timedelta(days=7)).isoformat()
+        response = self.client.get(
+            reverse('pos:report_sales'), {'from': self.today.isoformat(), 'to': old}
+        )
+        self.assertEqual(response.context['totals']['transactions'], 1)
 
-    def test_monthly_report_selects_month_and_year(self):
+    def test_the_legacy_daily_url_redirects_to_that_day(self):
+        response = self.client.get(
+            reverse('pos:report_daily'), {'date': self.today.isoformat()}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'from={self.today.isoformat()}', response['Location'])
+        self.assertIn(f'to={self.today.isoformat()}', response['Location'])
+
+    def test_the_legacy_monthly_url_redirects_to_that_month(self):
         response = self.client.get(
             reverse('pos:report_monthly'),
             {'month': self.today.month, 'year': self.today.year},
         )
-        self.assertEqual(response.context['totals']['transactions'], 1)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'from={self.today.replace(day=1).isoformat()}', response['Location'])
 
-    def test_yearly_report_lists_twelve_months(self):
+    def test_the_legacy_yearly_url_redirects_to_that_year(self):
         response = self.client.get(reverse('pos:report_yearly'), {'year': self.today.year})
-        self.assertEqual(len(response.context['months']), 12)
-        self.assertEqual(response.context['totals']['revenue'], Decimal('200.00'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f'from={self.today.year}-01-01', response['Location'])
+        self.assertIn(f'to={self.today.year}-12-31', response['Location'])
 
     def test_customer_report_range_is_inclusive(self):
         response = self.client.get(
@@ -196,10 +215,15 @@ class ReportViewTests(TestCase):
         self.assertNotContains(response, 'private@example.com')
 
     def test_reports_export_csv(self):
+        span = {'from': self.today.isoformat(), 'to': self.today.isoformat()}
         cases = [
-            ('report_daily', {'date': self.today.isoformat()}),
-            ('report_monthly', {'month': self.today.month, 'year': self.today.year}),
-            ('report_yearly', {'year': self.today.year}),
+            ('report_sales', span),
+            ('report_inventory', {}),
+            ('report_products', span),
+            ('report_suppliers', span),
+            ('report_cashflow', span),
+            ('report_collections', span),
+            ('report_profit', span),
             ('report_customers', {'from_date': self.today.isoformat(),
                                   'to_date': self.today.isoformat()}),
         ]
@@ -210,7 +234,9 @@ class ReportViewTests(TestCase):
 
     def test_a_cashier_cannot_open_reports(self):
         self.client.force_login(self.cashier)
-        self.assertEqual(self.client.get(reverse('pos:report_daily')).status_code, 403)
+        for name in self.ALL_REPORTS:
+            with self.subTest(report=name):
+                self.assertEqual(self.client.get(reverse(f'pos:{name}')).status_code, 403)
 
 
 class CustomerDashboardTests(TestCase):

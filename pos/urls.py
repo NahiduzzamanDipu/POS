@@ -8,7 +8,6 @@ urlpatterns = [
     # Authentication (BR-001)
     path('login/', auth.login_view, name='login'),
     path('logout/', auth.logout_view, name='logout'),
-    path('register/', auth.register, name='register'),
     path('change-password/', auth.change_password, name='change_password'),
 
     # Dashboard (section 21)
@@ -77,14 +76,22 @@ urlpatterns = [
     path('returns/new/<int:sale_pk>/', sales.return_create, name='return_create'),
     path('returns/<int:pk>/', sales.return_detail, name='return_detail'),
 
-    # Reports (BR-032 .. BR-036)
+    # Report centre (BR-032 .. BR-036)
     path('reports/', reports.report_index, name='reports'),
+    path('reports/sales/', reports.sales_report, name='report_sales'),
+    path('reports/inventory/', reports.inventory_report, name='report_inventory'),
+    path('reports/products/', reports.product_report, name='report_products'),
+    path('reports/suppliers/', reports.supplier_report, name='report_suppliers'),
+    path('reports/cash-flow/', reports.cashflow_report, name='report_cashflow'),
+    path('reports/collections/', reports.collection_report, name='report_collections'),
+    path('reports/profit/', reports.profit_report, name='report_profit'),
+    path('reports/customer/', reports.customer_report, name='report_customers'),
+
+    # Superseded by the Sales Report; these redirect into it with the matching
+    # range applied, so existing links and bookmarks keep working.
     path('reports/daily/', reports.daily_report, name='report_daily'),
     path('reports/monthly/', reports.monthly_report, name='report_monthly'),
     path('reports/yearly/', reports.yearly_report, name='report_yearly'),
-    path('reports/customer/', reports.customer_report, name='report_customers'),
-    path('reports/inventory/', reports.inventory_report, name='report_inventory'),
-    path('reports/products/', reports.product_report, name='report_products'),
 
     # Settings & audit (modules 16, 17)
     path('settings/', config.settings_view, name='settings'),

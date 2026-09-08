@@ -12,13 +12,18 @@ from pos.services import create_sale
 
 from .factories import make_product, make_user, set_tax
 
+# The report centre as it now stands. Daily / Monthly / Yearly were retired:
+# one Sales Report with an inclusive From/To range answers all three, so those
+# routes now redirect and are deliberately absent from this list.
 REPORTS = [
-    ('report_daily', '/reports/daily/', 'Daily Report'),
-    ('report_monthly', '/reports/monthly/', 'Monthly Report'),
-    ('report_yearly', '/reports/yearly/', 'Yearly Report'),
-    ('report_customers', '/reports/customer/', 'Customer Report'),
+    ('report_sales', '/reports/sales/', 'Sales Report'),
     ('report_inventory', '/reports/inventory/', 'Inventory Report'),
     ('report_products', '/reports/products/', 'Product Performance'),
+    ('report_suppliers', '/reports/suppliers/', 'Supplier Report'),
+    ('report_cashflow', '/reports/cash-flow/', 'Cash Flow'),
+    ('report_collections', '/reports/collections/', 'User Wise Collection'),
+    ('report_profit', '/reports/profit/', 'Profits'),
+    ('report_customers', '/reports/customer/', 'Customer Report'),
 ]
 
 
@@ -74,7 +79,7 @@ class ReportNavigationTests(TestCase):
                     self.assertContains(response, f'href="{path}"')
                     self.assertContains(response, f'>{label}</a>')
 
-    def test_the_sidebar_lists_all_six_reports_on_a_report_page(self):
+    def test_the_sidebar_lists_every_report_on_a_report_page(self):
         response = self.client.get(reverse('pos:report_inventory'))
         self.assertContains(response, 'nav-link--sub')
         for _name, path, _label in REPORTS:
@@ -150,7 +155,11 @@ class ChartTests(TestCase):
         self.assertIsNone(response.context['chart'])
 
     def test_a_quiet_day_renders_without_a_chart(self):
-        response = self.client.get(reverse('pos:report_daily'), {'date': '2020-01-15'})
+        # Retargeted from the retired Daily Report onto the Sales Report, which
+        # took over its job via the inclusive From/To range.
+        response = self.client.get(
+            reverse('pos:report_sales'), {'from': '2020-01-15', 'to': '2020-01-15'}
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.context['chart'])
 

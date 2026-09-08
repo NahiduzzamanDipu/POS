@@ -70,6 +70,16 @@ class User(AbstractUser):
         return self.get_full_name() or self.username
 
     @property
+    def full_name(self):
+        """The person's real name, or empty when it was never recorded.
+
+        Deliberately does NOT fall back to ``username`` the way
+        ``display_name`` does: staff screens must never surface a username, so
+        a blank name has to read as blank rather than quietly leaking one.
+        """
+        return self.get_full_name().strip()
+
+    @property
     def role_label(self):
         return self.get_role_display()
 
@@ -517,6 +527,21 @@ class SaleItem(models.Model):
     product_name = models.CharField(max_length=150)
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(**MONEY)
+    unit_cost = models.DecimalField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(ZERO)],
+        help_text=(
+            'What this unit cost the business, captured at the moment of sale. '
+            'Profit reporting uses this rather than the current '
+            'cost_price on the product, so editing a price later cannot '
+            'rewrite past margins. '
+            'NULL means the sale predates this field: those lines are reported '
+            'as "cost unknown" and excluded from profit rather than being '
+            'valued at a cost that was never paid.'
+        ),
+        **MONEY,
+    )
     discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=ZERO)
     discount_amount = models.DecimalField(default=ZERO, **MONEY)
     subtotal = models.DecimalField(default=ZERO, **MONEY)
@@ -531,6 +556,30 @@ class SaleItem(models.Model):
     @property
     def line_total(self):
         return (self.unit_price * self.quantity - self.discount_amount).quantize(TWO_PLACES)
+
+    @property
+    def has_cost(self):
+        """False for lines sold before unit_cost existed."""
+        return self.unit_cost is not None
+
+    @property
+    def line_cost(self):
+        """Cost of goods for this line, or None when it was never captured."""
+        if self.unit_cost is None:
+            return None
+        return (self.unit_cost * self.quantity).quantize(TWO_PLACES)
+
+    @property
+    def line_profit(self):
+        """Revenue after discount minus cost of goods, or None when unknown.
+
+        Uses line_total, not unit_price * quantity, so a discount given at the
+        till reduces the profit it actually reduced.
+        """
+        cost = self.line_cost
+        if cost is None:
+            return None
+        return (self.line_total - cost).quantize(TWO_PLACES)
 
     @property
     def returnable_quantity(self):

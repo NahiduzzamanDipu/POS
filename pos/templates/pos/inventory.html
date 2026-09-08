@@ -1,25 +1,65 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn btn--ghost" href="{% url 'pos:stock_movements' %}">Movements</a>
+{% block page_subtitle %}
+  <div class="page-head__sub">Stock on hand, valuation and replenishment alerts</div>
+{% endblock %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{% url 'pos:stock_movements' %}">
+    {% include "pos/_icon.html" with name="activity" %} Movements
+  </a>
   {% if 'inventory.adjust' in capabilities %}
-    <a class="btn" href="{% url 'pos:stock_adjust' %}">Adjust Stock</a>
+    <a class="btn" href="{% url 'pos:stock_adjust' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Adjust Stock
+    </a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Stock value (cost)</div><div class="stat__value">{{ currency }} {{ stock_value|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Total units</div><div class="stat__value stat__value--plain">{{ total_units|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Low stock</div><div class="stat__value stat__value--warn">{{ low_count }}</div></div>
-  <div class="stat"><div class="stat__label">Out of stock</div><div class="stat__value stat__value--warn">{{ out_count }}</div></div>
+  <div class="stat">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Stock value (cost)</div>
+      <div class="stat__value">{{ currency }} {{ stock_value|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">What the shelves cost us</div>
+    </div>
+  </div>
+  <div class="stat stat--neutral">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="box" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Total units</div>
+      <div class="stat__value">{{ total_units|intcomma }}</div>
+      <div class="stat__meta">Across the active catalogue</div>
+    </div>
+  </div>
+  <div class="stat stat--warning">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="alert-triangle" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Low stock</div>
+      <div class="stat__value">{{ low_count|intcomma }}</div>
+      <div class="stat__meta"><a href="?status=low">At or below minimum</a></div>
+    </div>
+  </div>
+  <div class="stat stat--danger">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="alert-circle" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Out of stock</div>
+      <div class="stat__value">{{ out_count|intcomma }}</div>
+      <div class="stat__meta"><a href="?status=out">Needs restocking</a></div>
+    </div>
+  </div>
 </div>
 
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Search</label>
-    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Product, SKU or barcode">
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Product, SKU or barcode">
+    </div>
   </div>
   <div class="field">
     <label for="status">Show</label>
@@ -29,41 +69,83 @@
       <option value="out" {% if selected_status == 'out' %}selected{% endif %}>Out of stock only</option>
     </select>
   </div>
-  <button type="submit" class="btn btn--ghost">Filter</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:inventory' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Product</th><th>SKU</th><th>Category</th><th class="num">In stock</th><th class="num">Minimum</th><th class="num">Value</th><th>Status</th><th></th></tr></thead>
+        <thead>
+          <tr>
+            <th>Product</th><th>SKU</th><th>Category</th>
+            <th class="num">In stock</th><th class="num">Minimum</th>
+            {% if 'product.price' in capabilities %}<th class="num">Cost Price</th>{% endif %}
+            <th class="num">Cost Value</th><th>Status</th><th class="num">Action</th>
+          </tr>
+        </thead>
         <tbody>
           {% for product in page_obj %}
             <tr>
               <td>
-                <div class="product-cell">
+                <div class="media-cell">
                   {% include "pos/_product_thumb.html" with product=product %}
-                  <a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                  <div class="media-cell__text">
+                    <a class="media-cell__title" href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
+                    {% if product.brand %}<div class="media-cell__sub">{{ product.brand }}</div>{% endif %}
+                  </div>
                 </div>
               </td>
               <td class="muted nowrap">{{ product.sku }}</td>
-              <td>{{ product.category.name }}</td>
-              <td class="num"><strong>{{ product.stock_quantity }}</strong></td>
+              <td><span class="badge">{{ product.category.name }}</span></td>
+              <td class="num strong">{{ product.stock_quantity|intcomma }}</td>
               <td class="num muted">{{ product.min_stock_level }}</td>
+              {% if 'product.price' in capabilities %}
+                <td class="num muted">
+                  {% if product.cost_price > 0 %}
+                    {{ currency }} {{ product.cost_price|floatformat:2|intcomma }}
+                  {% else %}
+                    <span class="badge badge--warn" title="Set a cost price so stock can be valued">not set</span>
+                  {% endif %}
+                </td>
+              {% endif %}
+              {# Stock quantity x cost price -- what this shelf cost us, not #}
+              {# what it will sell for. #}
               <td class="num">{{ currency }} {{ product.stock_value|floatformat:2|intcomma }}</td>
               <td>
-                {% if product.stock_status == 'out' %}<span class="badge badge--danger">Out of Stock</span>
-                {% elif product.stock_status == 'low' %}<span class="badge badge--warn">Low Stock</span>
-                {% else %}<span class="badge badge--success">In Stock</span>{% endif %}
+                {% if product.stock_status == 'out' %}
+                  <span class="badge badge--danger"><span class="badge__dot"></span>Out of Stock</span>
+                {% elif product.stock_status == 'low' %}
+                  <span class="badge badge--warn"><span class="badge__dot"></span>Low Stock</span>
+                {% else %}
+                  <span class="badge badge--success"><span class="badge__dot"></span>In Stock</span>
+                {% endif %}
               </td>
               <td class="num">
-                {% if 'inventory.adjust' in capabilities %}
-                  <a class="btn btn--ghost btn--sm" href="{% url 'pos:stock_adjust' %}?product={{ product.pk }}">Adjust</a>
-                {% endif %}
+                <div class="act-group">
+                  <a class="act act--view" href="{% url 'pos:product_detail' product.pk %}" title="View">
+                    {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                  </a>
+                  {% if 'inventory.adjust' in capabilities %}
+                    <a class="act act--edit" title="Adjust stock"
+                       href="{% url 'pos:stock_adjust' %}?product={{ product.pk }}">
+                      {% include "pos/_icon.html" with name="refresh" cls="icon--sm" %}
+                    </a>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="8"><div class="empty"><strong>Nothing to show</strong>No products match this filter.</div></td></tr>
+            <tr><td colspan="{% if 'product.price' in capabilities %}9{% else %}8{% endif %}">
+              {% include "pos/_empty.html" with title="Nothing to show" hint="No products match this filter." icon="layers" %}
+            </td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -1,6 +1,6 @@
 {% extends "pos/base.html" %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   {% if result.errors %}
     <a class="btn btn--ghost" href="{% url 'pos:product_import_errors' %}">Download Error Report</a>
   {% endif %}
@@ -25,7 +25,7 @@
 <section class="card">
   <div class="card__head">
     <h2>Import summary</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <span class="badge badge--success">{{ result.stocked }} with opening stock</span>
   </div>
   <div class="card__body">
@@ -41,7 +41,7 @@
   <section class="card" style="margin-top:24px">
     <div class="card__head">
       <h2>Rows that were skipped</h2>
-      <div class="topbar__spacer"></div>
+      <div class="spacer"></div>
       <a class="btn btn--ghost btn--sm" href="{% url 'pos:product_import_errors' %}">Download CSV</a>
     </div>
     <div class="card__body card__body--flush">

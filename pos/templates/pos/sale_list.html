@@ -1,29 +1,73 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_subtitle %}
+  <div class="page-head__sub">Every completed sale, searchable by invoice, customer or date</div>
+{% endblock %}
+
+{% block page_actions %}
   {% if 'return.process' in capabilities %}
-    <a class="btn btn--ghost" href="{% url 'pos:return_list' %}">Returns</a>
+    <a class="btn btn--ghost" href="{% url 'pos:return_list' %}">
+      {% include "pos/_icon.html" with name="rotate" %} Returns
+    </a>
+  {% endif %}
+  {% if 'report.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:report_sales' %}">
+      {% include "pos/_icon.html" with name="chart" %} Sales Report
+    </a>
   {% endif %}
   {% if 'pos.sell' in capabilities %}
-    <a class="btn" href="{% url 'pos:pos_terminal' %}">New Sale</a>
+    <a class="btn" href="{% url 'pos:pos_terminal' %}">
+      {% include "pos/_icon.html" with name="plus" %} New Sale
+    </a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Transactions</div><div class="stat__value stat__value--plain">{{ page_obj.paginator.count|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Total value</div><div class="stat__value">{{ currency }} {{ total_value|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Refunded</div><div class="stat__value stat__value--warn">{{ currency }} {{ refunded_value|floatformat:2|intcomma }}</div></div>
+  <div class="stat stat--neutral">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Transactions</div>
+      <div class="stat__value">{{ page_obj.paginator.count|intcomma }}</div>
+      <div class="stat__meta">Matching this filter</div>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Total value</div>
+      <div class="stat__value">{{ currency }} {{ total_value|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">Excluding voided sales</div>
+    </div>
+  </div>
+  <div class="stat stat--warning">
+    <span class="stat__icon">{% include "pos/_icon.html" with name="rotate" cls="icon--lg" %}</span>
+    <div class="stat__text">
+      <div class="stat__label">Refunded</div>
+      <div class="stat__value">{{ currency }} {{ refunded_value|floatformat:2|intcomma }}</div>
+      <div class="stat__meta">Returned to customers</div>
+    </div>
+  </div>
 </div>
 
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Search</label>
-    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Invoice number, customer name or phone">
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Invoice number or customer number">
+    </div>
   </div>
-  <div class="field"><label for="from">From</label><input type="date" id="from" name="from" class="input" value="{{ filters.from }}"></div>
-  <div class="field"><label for="to">To</label><input type="date" id="to" name="to" class="input" value="{{ filters.to }}"></div>
+  <div class="field">
+    <label for="from">From</label>
+    <input type="date" id="from" name="from" class="input" value="{{ filters.from }}">
+  </div>
+  <div class="field">
+    <label for="to">To</label>
+    <input type="date" id="to" name="to" class="input" value="{{ filters.to }}">
+  </div>
   <div class="field">
     <label for="method">Payment</label>
     <select id="method" name="method" class="select">
@@ -42,32 +86,73 @@
       {% endfor %}
     </select>
   </div>
-  <button type="submit" class="btn btn--ghost">Filter</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:sale_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Invoice ID</th><th>Date</th><th>Customer</th><th>Cashier</th><th class="num">Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+        <thead>
+          <tr>
+            <th>Invoice ID</th><th>Date &amp; time</th><th>Customer</th><th>Employee</th>
+            <th class="num">Amount</th><th>Payment</th><th>Status</th><th class="num">Action</th>
+          </tr>
+        </thead>
         <tbody>
           {% for sale in page_obj %}
             <tr>
-              <td><a href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a></td>
-              <td class="nowrap muted">{{ sale.created_at|date:"d M Y H:i" }}</td>
-              <td>{{ sale.customer_label }}</td>
-              <td class="muted">{{ sale.cashier.display_name }}</td>
-              <td class="num">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
-              <td>{{ sale.get_payment_method_display }}</td>
               <td>
-                {% if sale.status == 'COMPLETED' %}<span class="badge badge--success">Completed</span>
-                {% elif sale.status == 'VOID' %}<span class="badge badge--danger">Void</span>
-                {% else %}<span class="badge badge--warn">{{ sale.get_status_display }}</span>{% endif %}
+                <a class="media-cell__title" href="{% url 'pos:sale_detail' sale.pk %}">{{ sale.invoice_no }}</a>
+                {% if sale.refunded_amount > 0 %}
+                  <div class="media-cell__sub">
+                    Refunded {{ currency }} {{ sale.refunded_amount|floatformat:2|intcomma }}
+                  </div>
+                {% endif %}
               </td>
-              <td class="num"><a class="btn btn--ghost btn--sm" href="{% url 'pos:invoice' sale.pk %}">Invoice</a></td>
+              <td class="nowrap muted">{{ sale.created_at|date:"d M Y" }}
+                <div class="media-cell__sub">{{ sale.created_at|date:"H:i" }}</div>
+              </td>
+              <td class="nowrap">{{ sale.customer_label }}</td>
+              <td class="muted">{{ sale.cashier.display_name }}</td>
+              <td class="num strong">{{ currency }} {{ sale.total_amount|floatformat:2|intcomma }}</td>
+              <td><span class="badge">{{ sale.get_payment_method_display }}</span></td>
+              <td>
+                {% if sale.status == 'COMPLETED' %}
+                  <span class="badge badge--success"><span class="badge__dot"></span>Completed</span>
+                {% elif sale.status == 'VOID' %}
+                  <span class="badge badge--danger"><span class="badge__dot"></span>Void</span>
+                {% else %}
+                  <span class="badge badge--warn"><span class="badge__dot"></span>{{ sale.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="num">
+                <div class="act-group">
+                  <a class="act act--view" href="{% url 'pos:sale_detail' sale.pk %}" title="View sale">
+                    {% include "pos/_icon.html" with name="eye" cls="icon--sm" %}
+                  </a>
+                  <a class="act act--edit" href="{% url 'pos:invoice' sale.pk %}" title="Invoice">
+                    {% include "pos/_icon.html" with name="receipt" cls="icon--sm" %}
+                  </a>
+                  {% if 'return.process' in capabilities and sale.is_returnable %}
+                    <a class="act act--ok" href="{% url 'pos:return_create' sale.pk %}" title="Process return">
+                      {% include "pos/_icon.html" with name="rotate" cls="icon--sm" %}
+                    </a>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% empty %}
-            <tr><td colspan="8"><div class="empty"><strong>No transactions found</strong>Try widening the date range.</div></td></tr>
+            <tr><td colspan="8">
+              {% include "pos/_empty.html" with title="No transactions found" hint="Try widening the date range or clearing the filters." icon="receipt" %}
+            </td></tr>
           {% endfor %}
         </tbody>
       </table>

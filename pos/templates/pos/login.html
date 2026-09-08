@@ -3,42 +3,111 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f2137">
   <title>Sign in | {{ store.business_name }}</title>
   <link rel="stylesheet" href="{% static 'pos/css/app.css' %}?v={{ asset_version }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23f56a1c'/><text x='16' y='23' font-size='18' font-family='Segoe UI,sans-serif' font-weight='700' fill='white' text-anchor='middle'>O</text></svg>">
 </head>
-<body class="login-page">
-  <main class="login-card">
-    <div class="login-card__brand">{{ store.business_name }}</div>
-    <p class="login-card__sub">Point of Sale Management System</p>
+<body>
+{% include "pos/_icons.html" %}
 
-    {% if messages %}
-      <div class="messages">
-        {% for message in messages %}
-          <div class="alert alert--{{ message.tags|default:'info' }}">{{ message }}</div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% if form.non_field_errors %}
-      <div class="alert alert--error">{{ form.non_field_errors.0 }}</div>
-    {% endif %}
-
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% include "pos/_field.html" with field=form.username %}
-      {% include "pos/_field.html" with field=form.password %}
-      {% include "pos/_field.html" with field=form.role %}
-      <button type="submit" class="btn btn--block btn--lg">Login</button>
-    </form>
-
-    {% if store.allow_self_registration %}
-      <p class="login-hint" style="padding-bottom:14px; border-bottom:1px solid var(--border)">
-        New here? <a href="{% url 'pos:register' %}">Create an account</a>
-      </p>
-    {% endif %}
-    <p class="login-hint" style="border-top:0; padding-top:10px">
-      Your role is verified against your account, not the selection above.
+<div class="login">
+  <aside class="login__aside">
+    <div class="login__aside-brand">
+      <span class="sidebar__mark" aria-hidden="true">O</span>
+      {{ store.business_name }}
+    </div>
+    <h2>Run the counter,<br>not the paperwork.</h2>
+    <p>
+      Sell, track stock and read the day's numbers from one place &mdash; built for
+      the {{ store.business_name }} shop floor.
     </p>
+    <ul class="login__points">
+      <li>{% include "pos/_icon.html" with name="sale" %} Fast search-and-scan checkout</li>
+      <li>{% include "pos/_icon.html" with name="layers" %} Live stock and low-stock alerts</li>
+      <li>{% include "pos/_icon.html" with name="chart" %} Sales, cash flow and staff reports</li>
+      <li>{% include "pos/_icon.html" with name="shield" %} Role-based access on every screen</li>
+    </ul>
+  </aside>
+
+  <main class="login__panel">
+    <div class="login__card">
+      <div class="login__mark" aria-hidden="true">O</div>
+      <h1>Sign in</h1>
+      <p>Use the email address or phone number registered to your account.</p>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert--{{ message.tags|default:'info' }}" style="margin-bottom:16px">
+            {% if message.tags == 'success' %}{% include "pos/_icon.html" with name="check-circle" %}
+            {% elif message.tags == 'error' %}{% include "pos/_icon.html" with name="alert-circle" %}
+            {% else %}{% include "pos/_icon.html" with name="info" %}{% endif %}
+            <div>{{ message }}</div>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert--error" style="margin-bottom:16px">
+          {% include "pos/_icon.html" with name="alert-circle" %}
+          <div>{{ form.non_field_errors.0 }}</div>
+        </div>
+      {% endif %}
+
+      {# No role selector and no sign-up link: the role is read from the #}
+      {# account after the password checks out, and only an administrator #}
+      {# creates accounts (under Employees). #}
+      <form method="post" novalidate data-busy>
+        {% csrf_token %}
+
+        <div class="field">
+          <label for="{{ form.username.id_for_label }}">Email or Phone</label>
+          <div class="input-icon">
+            {% include "pos/_icon.html" with name="user" %}
+            {{ form.username }}
+          </div>
+          {{ form.username.errors }}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.password.id_for_label }}">Password</label>
+          <div class="pw-field">
+            {{ form.password }}
+            <button type="button" class="pw-toggle" id="pw-toggle"
+                    aria-label="Show password" aria-pressed="false">
+              {% include "pos/_icon.html" with name="eye" %}
+            </button>
+          </div>
+          {{ form.password.errors }}
+        </div>
+
+        <button type="submit" class="btn btn--block btn--lg">
+          {% include "pos/_icon.html" with name="logout" %} Sign in
+        </button>
+      </form>
+
+      <p class="login__foot">
+        Accounts are created by an administrator. If you cannot sign in,
+        ask your manager to check your email address or reset your password.
+      </p>
+    </div>
   </main>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+    var button = document.getElementById('pw-toggle');
+    var input = document.getElementById('{{ form.password.id_for_label }}');
+    if (!button || !input) { return; }
+    button.addEventListener('click', function () {
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      button.setAttribute('aria-pressed', String(!showing));
+      button.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      button.querySelector('use').setAttribute('href', showing ? '#i-eye' : '#i-eye-off');
+    });
+  }());
+</script>
 </body>
 </html>

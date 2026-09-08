@@ -5,16 +5,41 @@
 {% include "pos/_report_nav.html" %}
 
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Today's sales</div>
-    <div class="stat__value">{{ currency }} {{ today.revenue|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Today's transactions</div>
-    <div class="stat__value stat__value--plain">{{ today.transactions }}</div></div>
-  <div class="stat"><div class="stat__label">This month</div>
-    <div class="stat__value">{{ currency }} {{ month.revenue|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">This year</div>
-    <div class="stat__value">{{ currency }} {{ year.revenue|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Items sold this year</div>
-    <div class="stat__value stat__value--plain">{{ year.items|intcomma }}</div></div>
+  <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Today's sales</div>
+    <div class="stat__value">{{ currency }} {{ today.revenue|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Today's transactions</div>
+    <div class="stat__value stat__value--plain">{{ today.transactions }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="calendar" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">This month</div>
+    <div class="stat__value">{{ currency }} {{ month.revenue|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="calendar" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">This year</div>
+    <div class="stat__value">{{ currency }} {{ year.revenue|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Items sold this year</div>
+    <div class="stat__value stat__value--plain">{{ year.items|intcomma }}</div>
+  </div>
+</div>
 </div>
 
 {% include "pos/_chart.html" %}

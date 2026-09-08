@@ -1,10 +1,10 @@
 {% comment %}Grouped bar chart. Geometry comes from pos/charts.py, so the
 numbers are the database's, not JavaScript's.{% endcomment %}
 {% if chart %}
-<section class="card chart-card">
+<section class="card">
   <div class="card__head">
     <h2>{{ chart.title }}</h2>
-    <div class="topbar__spacer"></div>
+    <div class="spacer"></div>
     <div class="chart-legend">
       {% for item in chart.legend %}
         <span class="chart-legend__item">
@@ -29,8 +29,8 @@ numbers are the database's, not JavaScript's.{% endcomment %}
           {% for bar in group.bars %}
             <rect x="{{ bar.x }}" y="{{ bar.y }}"
                   width="{{ bar.width }}" height="{{ bar.height }}"
-                  fill="{{ bar.colour }}" rx="2" class="chart__bar">
-              <title>{{ group.label }} — {{ bar.label }}: {{ bar.value|floatformat:2 }}</title>
+                  fill="{{ bar.colour }}" rx="3" class="chart__bar">
+              <title>{{ group.label }} &mdash; {{ bar.label }}: {{ bar.value|floatformat:2 }}</title>
             </rect>
           {% endfor %}
           <text x="{{ group.centre }}" y="{{ chart.baseline }}" dy="18"

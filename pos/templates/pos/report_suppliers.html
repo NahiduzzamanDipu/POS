@@ -1,0 +1,148 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% comment %}
+What each supplier costs and what their goods return.
+
+`spend` is money paid out on purchase orders in the range; `revenue` is what
+their products sold for. Stock value is held at cost, so the two columns are
+directly comparable.
+{% endcomment %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+<form class="filters" method="get">
+  <div class="field">
+    <label for="{{ form.from_date.id_for_label }}">From Date</label>
+    {{ form.from_date }}{{ form.from_date.errors }}
+  </div>
+  <div class="field">
+    <label for="{{ form.to_date.id_for_label }}">To Date</label>
+    {{ form.to_date }}{{ form.to_date.errors }}
+  </div>
+  <div class="field">
+    <label for="q">Supplier</label>
+    <input type="search" id="q" name="q" class="input" value="{{ search_term }}" placeholder="Name or contact">
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status" class="select">
+      <option value="">All</option>
+      <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div class="filters__actions">
+    <button type="submit" class="btn">{% include "pos/_icon.html" with name="filter" %} Apply Filter</button>
+    <a class="btn btn--ghost" href="{% url 'pos:report_suppliers' %}">Reset</a>
+  </div>
+</form>
+
+<div class="stat-grid">
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="truck" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Suppliers</div>
+    <div class="stat__value stat__value--plain">{{ totals.suppliers|intcomma }}</div>
+    <div class="stat__meta">{{ totals.active|intcomma }} active</div>
+  </div>
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="inbox" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Purchase spend</div>
+    <div class="stat__value stat__value--warn">{{ currency }} {{ totals.spend|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ totals.orders|intcomma }} order{{ totals.orders|pluralize }}</div>
+  </div>
+</div>
+  <div class="stat stat--success">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="trending-up" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Revenue from their goods</div>
+    <div class="stat__value">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ totals.sold_units|intcomma }} unit{{ totals.sold_units|pluralize }} sold</div>
+  </div>
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Stock value held</div>
+    <div class="stat__value">{{ currency }} {{ totals.stock_value|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">{{ totals.products|intcomma }} product{{ totals.products|pluralize }} at cost</div>
+  </div>
+</div>
+</div>
+
+{% include "pos/_chart.html" %}
+
+<section class="card">
+  <div class="card__head">
+    <h2>Suppliers</h2>
+    <div class="spacer"></div>
+    <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
+  </div>
+
+  {% if page_obj %}
+    <div class="table-wrap"><table class="data">
+      <thead>
+        <tr>
+          <th>Supplier</th>
+          <th class="num">Products</th>
+          <th class="num">Stock units</th>
+          <th class="num">Stock value</th>
+          <th class="num">Orders</th>
+          <th class="num">Spend</th>
+          <th class="num">Units sold</th>
+          <th class="num">Revenue</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+          <tr>
+            <td>
+              <a class="strong" href="{% url 'pos:supplier_detail' row.supplier.pk %}">{{ row.supplier.name }}</a>
+              {% if row.supplier.contact_person %}
+                <div class="muted small">{{ row.supplier.contact_person }}</div>
+              {% endif %}
+            </td>
+            <td class="num">{{ row.products|intcomma }}</td>
+            <td class="num">{{ row.units|intcomma }}</td>
+            <td class="num">{{ currency }} {{ row.stock_value|floatformat:2|intcomma }}</td>
+            <td class="num">{{ row.orders|intcomma }}</td>
+            <td class="num muted">{{ currency }} {{ row.spend|floatformat:2|intcomma }}</td>
+            <td class="num">{{ row.sold_units|intcomma }}</td>
+            <td class="num"><strong>{{ currency }} {{ row.revenue|floatformat:2|intcomma }}</strong></td>
+            <td>
+              <span class="badge {% if row.supplier.is_active %}badge--success{% else %}badge--warn{% endif %}">
+                {% if row.supplier.is_active %}Active{% else %}Inactive{% endif %}
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <th class="num">{{ totals.products|intcomma }}</th>
+          <th class="num">{{ totals.units|intcomma }}</th>
+          <th class="num">{{ currency }} {{ totals.stock_value|floatformat:2|intcomma }}</th>
+          <th class="num">{{ totals.orders|intcomma }}</th>
+          <th class="num">{{ currency }} {{ totals.spend|floatformat:2|intcomma }}</th>
+          <th class="num">{{ totals.sold_units|intcomma }}</th>
+          <th class="num">{{ currency }} {{ totals.revenue|floatformat:2|intcomma }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table></div>
+    {% include "pos/_pagination.html" %}
+  {% else %}
+    {% include "pos/_empty.html" with title="No suppliers match" hint="Clear the filters, or add a supplier." icon="truck" %}
+  {% endif %}
+</section>
+{% endblock %}

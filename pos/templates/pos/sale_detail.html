@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{% url 'pos:invoice' sale.pk %}">View Invoice</a>
   {% if can_return and sale.is_returnable %}
     <a class="btn btn--ghost" href="{% url 'pos:return_create' sale.pk %}">Process Return</a>
@@ -13,7 +13,7 @@
   <section class="card">
     <div class="card__head">
       <h2>{{ sale.invoice_no }}</h2>
-      <div class="topbar__spacer"></div>
+      <div class="spacer"></div>
       {% if sale.status == 'COMPLETED' %}<span class="badge badge--success">Completed</span>
       {% elif sale.status == 'VOID' %}<span class="badge badge--danger">Void</span>
       {% else %}<span class="badge badge--warn">{{ sale.get_status_display }}</span>{% endif %}

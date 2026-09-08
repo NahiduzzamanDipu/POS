@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   <a class="btn btn--ghost" href="{% url 'pos:stock_movements' %}">Stock Movements</a>
   <a class="btn btn--ghost" href="?status={{ selected_status }}&category={{ selected_category }}&q={{ search_term }}&export=csv">Export CSV</a>
 {% endblock %}
@@ -10,20 +10,45 @@
 {% include "pos/_report_nav.html" %}
 
 <div class="stat-grid">
-  <div class="stat"><div class="stat__label">Stock value (cost)</div>
-    <div class="stat__value">{{ currency }} {{ valuation.cost_value|default:0|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Stock value (retail)</div>
-    <div class="stat__value stat__value--plain">{{ currency }} {{ valuation.retail_value|default:0|floatformat:2|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Units on hand</div>
-    <div class="stat__value stat__value--plain">{{ valuation.units|default:0|intcomma }}</div></div>
-  <div class="stat"><div class="stat__label">Low stock</div>
-    <div class="stat__value stat__value--warn">{{ low_count }}</div></div>
-  <div class="stat"><div class="stat__label">Out of stock</div>
-    <div class="stat__value stat__value--warn">{{ out_count }}</div></div>
+  <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Stock value (cost)</div>
+    <div class="stat__value">{{ currency }} {{ valuation.cost_value|default:0|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="store" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Stock value (retail)</div>
+    <div class="stat__value stat__value--plain">{{ currency }} {{ valuation.retail_value|default:0|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Units on hand</div>
+    <div class="stat__value stat__value--plain">{{ valuation.units|default:0|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--warning">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="alert-triangle" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Low stock</div>
+    <div class="stat__value stat__value--warn">{{ low_count }}</div>
+  </div>
+</div>
+  <div class="stat stat--danger">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="alert-circle" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Out of stock</div>
+    <div class="stat__value stat__value--warn">{{ out_count }}</div>
+  </div>
+</div>
 </div>
 
-<form class="toolbar" method="get">
-  <div class="field toolbar__grow">
+<form class="filters" method="get">
+  <div class="field filters__grow">
     <label for="q">Search</label>
     <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
            placeholder="Product, SKU or barcode">
@@ -54,7 +79,7 @@
   <section class="card">
     <div class="card__head">
       <h2>Current stock</h2>
-      <div class="topbar__spacer"></div>
+      <div class="spacer"></div>
       <span class="muted small">{{ page_obj.paginator.count }} product{{ page_obj.paginator.count|pluralize }}</span>
     </div>
     <div class="card__body card__body--flush">
@@ -66,7 +91,7 @@
           {% for product in page_obj %}
             <tr>
               <td>
-                <div class="product-cell">
+                <div class="media-cell">
                   {% include "pos/_product_thumb.html" with product=product %}
                   <a href="{% url 'pos:product_detail' product.pk %}">{{ product.name }}</a>
                 </div>
@@ -96,7 +121,7 @@
   <section class="card">
     <div class="card__head">
       <h2>Recent stock movement</h2>
-      <div class="topbar__spacer"></div>
+      <div class="spacer"></div>
       <a class="btn btn--ghost btn--sm" href="{% url 'pos:stock_movements' %}">View all</a>
     </div>
     <div class="card__body card__body--flush">

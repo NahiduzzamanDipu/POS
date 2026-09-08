@@ -22,37 +22,28 @@ class StyledForm(forms.Form):
             field.widget.attrs['class'] = css
 
 
-class DailyReportForm(StyledForm):
-    date = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
-        initial=timezone.localdate,
-        label='Date',
+class DateRangeForm(StyledForm):
+    """The inclusive From/To filter shared by every dated report."""
+
+    from_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}), label='From Date'
     )
-
-    def clean_date(self):
-        value = self.cleaned_data['date']
-        if value > timezone.localdate():
-            raise ValidationError('That date is in the future.')
-        return value
-
-
-class MonthlyReportForm(StyledForm):
-    month = forms.TypedChoiceField(choices=MONTHS, coerce=int, label='Month')
-    year = forms.TypedChoiceField(choices=_year_choices, coerce=int, label='Year')
+    to_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}), label='To Date'
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         today = timezone.localdate()
-        self.fields['month'].initial = today.month
-        self.fields['year'].initial = today.year
+        self.fields['from_date'].initial = today.replace(day=1)
+        self.fields['to_date'].initial = today
 
-
-class YearlyReportForm(StyledForm):
-    year = forms.TypedChoiceField(choices=_year_choices, coerce=int, label='Year')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['year'].initial = timezone.localdate().year
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get('from_date'), cleaned.get('to_date')
+        if start and end and start > end:
+            self.add_error('to_date', 'The To date cannot be before the From date.')
+        return cleaned
 
 
 class CustomerReportForm(StyledForm):

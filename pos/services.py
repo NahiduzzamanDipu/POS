@@ -323,6 +323,10 @@ def create_sale(
             product_name=line.product.name,
             quantity=line.quantity,
             unit_price=line.unit_price,
+            # Snapshot the cost as well as the price. Without this, a later
+            # edit to the product's cost_price would silently rewrite the
+            # margin on every sale already made.
+            unit_cost=line.product.cost_price,
             discount_percent=line.discount_percent,
             discount_amount=line.discount_amount,
             subtotal=line.subtotal,

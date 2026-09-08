@@ -1,12 +1,57 @@
-{% if page_obj.paginator.num_pages > 1 %}
+{% comment %}
+Pagination footer for a listing card.
+
+Expects `page_obj` and, when the list carries filters, `querystring` (from
+pos.views._helpers.query_string) so paging keeps the current filter.
+{% endcomment %}
+{% if page_obj.paginator.count %}
 <div class="pagination">
-  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-    &middot; {{ page_obj.paginator.count }} record{{ page_obj.paginator.count|pluralize }}</span>
-  {% if page_obj.has_previous %}
-    <a class="btn btn--ghost btn--sm" href="?page={{ page_obj.previous_page_number }}{{ querystring }}">Previous</a>
-  {% endif %}
-  {% if page_obj.has_next %}
-    <a class="btn btn--ghost btn--sm" href="?page={{ page_obj.next_page_number }}{{ querystring }}">Next</a>
+  <span>
+    Showing <strong>{{ page_obj.start_index }}&ndash;{{ page_obj.end_index }}</strong>
+    of <strong>{{ page_obj.paginator.count }}</strong> record{{ page_obj.paginator.count|pluralize }}
+  </span>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination__pages">
+      {# previous_page_number() RAISES EmptyPage on page 1, and a template
+         filter cannot catch an exception -- |default only ever sees a value
+         that was returned. Guard on has_previous instead, and render a plain
+         span when there is nowhere to go back to, so the control is disabled
+         rather than a link to a page that does not exist. #}
+      {% if page_obj.has_previous %}
+        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ querystring }}"
+           aria-label="Previous page">
+          {% include "pos/_icon.html" with name="chevron-left" cls="icon--sm" %}
+        </a>
+      {% else %}
+        <span class="page-link is-disabled" aria-disabled="true" aria-label="Previous page">
+          {% include "pos/_icon.html" with name="chevron-left" cls="icon--sm" %}
+        </span>
+      {% endif %}
+
+      {% for number in page_obj.paginator.page_range %}
+        {% if number == page_obj.number %}
+          <span class="page-link is-active" aria-current="page">{{ number }}</span>
+        {% elif number == 1 or number == page_obj.paginator.num_pages %}
+          <a class="page-link" href="?page={{ number }}{{ querystring }}">{{ number }}</a>
+        {% elif number > page_obj.number|add:"-3" and number < page_obj.number|add:"3" %}
+          <a class="page-link" href="?page={{ number }}{{ querystring }}">{{ number }}</a>
+        {% elif number == page_obj.number|add:"-3" or number == page_obj.number|add:"3" %}
+          <span class="page-gap">&hellip;</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ querystring }}"
+           aria-label="Next page">
+          {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+        </a>
+      {% else %}
+        <span class="page-link is-disabled" aria-disabled="true" aria-label="Next page">
+          {% include "pos/_icon.html" with name="chevron-right" cls="icon--sm" %}
+        </span>
+      {% endif %}
+    </div>
   {% endif %}
 </div>
 {% endif %}

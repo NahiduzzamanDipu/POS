@@ -1,0 +1,54 @@
+{% comment %}
+Share-of-total ring with a value legend beside it.
+
+    {% include "pos/_donut.html" with donut=stock_chart title="Stock status" money=1 %}
+
+`money` formats the legend values as currency; leave it off for plain counts.
+Renders nothing when the builder returned None.
+{% endcomment %}
+{% load humanize %}
+{% if donut %}
+<section class="card">
+  <div class="card__head"><h2>{{ title|default:donut.title }}</h2></div>
+  <div class="card__body">
+    <div class="donut-wrap">
+      <svg class="chart chart--donut" width="{{ donut.size }}" height="{{ donut.size }}"
+           viewBox="0 0 {{ donut.size }} {{ donut.size }}" role="img"
+           aria-label="{{ title|default:donut.title }}">
+        <circle cx="{{ donut.centre }}" cy="{{ donut.centre }}" r="{{ donut.radius }}"
+                fill="none" stroke="#eef1f6" stroke-width="{{ donut.stroke }}"/>
+        <g transform="rotate(-90 {{ donut.centre }} {{ donut.centre }})">
+          {% for segment in donut.segments %}
+            <circle class="chart__slice"
+                    cx="{{ donut.centre }}" cy="{{ donut.centre }}" r="{{ donut.radius }}"
+                    fill="none" stroke="{{ segment.colour }}" stroke-width="{{ donut.stroke }}"
+                    stroke-dasharray="{{ segment.dash }}" stroke-dashoffset="{{ segment.offset }}">
+              <title>{{ segment.label }}: {{ segment.percent }}%</title>
+            </circle>
+          {% endfor %}
+        </g>
+        <text x="{{ donut.centre }}" y="{{ donut.centre }}" dy="2"
+              class="chart__hole-value" text-anchor="middle">
+          {% if money %}{{ currency }}{{ donut.total|floatformat:0|intcomma }}{% else %}{{ donut.total|floatformat:0|intcomma }}{% endif %}
+        </text>
+        <text x="{{ donut.centre }}" y="{{ donut.centre }}" dy="19"
+              class="chart__hole-label" text-anchor="middle">{{ donut.centre_label }}</text>
+      </svg>
+
+      <div class="legend-list">
+        {% for segment in donut.segments %}
+          <div class="legend-list__row">
+            <span class="legend-list__swatch" style="background:{{ segment.colour }}"></span>
+            <span class="legend-list__label" title="{{ segment.label }}">{{ segment.label }}</span>
+            <span class="legend-list__value">
+              {% if money %}{{ currency }} {{ segment.value|floatformat:2|intcomma }}
+              {% else %}{{ segment.value|floatformat:"-2"|intcomma }}{% endif %}
+            </span>
+            <span class="soft small">{{ segment.percent }}%</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}

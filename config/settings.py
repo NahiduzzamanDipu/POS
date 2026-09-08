@@ -16,14 +16,63 @@ def env_bool(name, default=False):
     return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-0hii+htqbqcvfqn-9ejw*p3g+deg_&go93)9^z$&z%#)zp^xds',
-)
-
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+
+def _read_or_create_dev_key():
+    """A stable signing key for local work, kept out of version control.
+
+    Generated on first run and cached in `.secret_key` so restarting the
+    server does not sign every developer out. Never used when DEBUG is off.
+    """
+    from django.core.management.utils import get_random_secret_key
+
+    key_file = BASE_DIR / '.secret_key'
+    try:
+        existing = key_file.read_text(encoding='utf-8').strip()
+        if existing:
+            return existing
+    except OSError:
+        pass
+
+    key = get_random_secret_key()
+    try:
+        key_file.write_text(key, encoding='utf-8')
+    except OSError:
+        # Read-only checkout: fall back to a per-process key. Sessions will
+        # not survive a restart, which is acceptable for development.
+        pass
+    return key
+
+
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip()
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = _read_or_create_dev_key()
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY is not set.\n\n'
+            'Refusing to start: with DEBUG off this application signs session '
+            'cookies, password-reset links and CSRF tokens with this key. '
+            'Running on a guessable or shared key would let anyone forge an '
+            'administrator session.\n\n'
+            'Generate one and put it in .env:\n'
+            '  python -c "from django.core.management.utils import '
+            'get_random_secret_key; print(get_random_secret_key())"'
+        )
+
+# The default covers local work plus the production domain, so the site still
+# answers if a freshly deployed host has no .env yet. Override it in .env for
+# any other domain.
+DEFAULT_ALLOWED_HOSTS = 'localhost,127.0.0.1,pos.odelltech.com,www.pos.odelltech.com'
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv('DJANGO_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS).split(',')
+    if h.strip()
+]
+
 
 
 INSTALLED_APPS = [
@@ -39,6 +88,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise is inserted here at the end of this file when it is
+    # installed, so static files are served with DEBUG off.
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -159,8 +211,27 @@ USE_TZ = True
 
 
 # Static files
+# ---------------------------------------------------------------------------
+# With DEBUG off Django stops serving static files itself, and a shared host
+# will not always have an Apache alias configured. WhiteNoise fills that gap
+# from STATIC_ROOT after `collectstatic`.
+#
+# It is optional on purpose: if pip could not install it, the site still runs
+# (unstyled with DEBUG off) rather than failing to boot on an ImportError.
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+try:
+    import whitenoise                                   # noqa: F401
+except ImportError:
+    WHITENOISE_AVAILABLE = False
+else:
+    WHITENOISE_AVAILABLE = True
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    # Serve the files as collected. The hashed/manifest storage is deliberately
+    # not used: it hard-fails on a single missing reference, which is a poor
+    # trade on a host where nobody is watching the deploy log.
+    WHITENOISE_MAX_AGE = 60 * 60 * 24 * 7
 
 
 # Sessions -- cashiers share terminals, so sessions must not outlive a shift.
@@ -173,11 +244,28 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 
 if not DEBUG:
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', True)
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # Behind a proxy that terminates TLS (cPanel, LiteSpeed, most PaaS) Django
+    # sees plain HTTP unless it is told to trust this header. Without it,
+    # request.is_secure() is False, secure cookies are never sent back, and an
+    # SSL redirect turns into an infinite loop.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SESSION_COOKIE_SECURE = env_bool('DJANGO_SECURE_COOKIES', True)
+    CSRF_COOKIE_SECURE = env_bool('DJANGO_SECURE_COOKIES', True)
+
+    # Off by default, deliberately. Shared hosts nearly always force HTTPS at
+    # the web-server level already, and a second redirect here -- on a host
+    # that does not pass the header above -- makes the whole site unreachable.
+    # A missing redirect is recoverable; a redirect loop is not. Turn it on
+    # with DJANGO_SECURE_SSL_REDIRECT=True once HTTPS is confirmed working.
+    SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', False)
+
+    # HSTS is only safe once HTTPS definitely works, for the same reason: a
+    # browser that has seen this header refuses plain HTTP for a year.
+    if env_bool('DJANGO_ENABLE_HSTS', False):
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 

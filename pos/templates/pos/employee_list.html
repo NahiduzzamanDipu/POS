@@ -1,69 +1,186 @@
 {% extends "pos/base.html" %}
+{% load humanize %}
 
-{% block topbar_actions %}
-  <a class="btn btn--ghost" href="{% url 'pos:activity_log' %}">Activity</a>
-  <a class="btn" href="{% url 'pos:employee_create' %}">Add Employee</a>
+{% comment %}
+The employee table shows: Employee ID, Employee Name, Role, Phone, Sales,
+Status, Email. The name reads from the existing first/last name fields.
+
+Usernames appear nowhere -- they are an internal detail of Django's auth
+tables now that staff sign in with an email or phone, which is also why the
+name is read through `full_name` rather than `display_name`: the latter falls
+back to the username when a name is blank.
+{% endcomment %}
+
+{% block page_subtitle %}
+  <div class="page-head__sub">
+    {{ active_count|intcomma }} active account{{ active_count|pluralize }}
+    &middot; {{ match_count|intcomma }} shown
+    {% if pending_count %}
+      &middot; <span class="badge badge--warn">{{ pending_count }} awaiting approval</span>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block page_actions %}
+  {% if 'activity.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:activity_log' %}">
+      {% include "pos/_icon.html" with name="activity" %} Activity
+    </a>
+  {% endif %}
+  {% if 'report.view' in capabilities %}
+    <a class="btn btn--ghost" href="{% url 'pos:report_collections' %}">
+      {% include "pos/_icon.html" with name="chart" %} Collection Report
+    </a>
+  {% endif %}
+  <a class="btn" href="{% url 'pos:employee_create' %}">
+    {% include "pos/_icon.html" with name="plus" %} Add Employee
+  </a>
 {% endblock %}
 
 {% block content %}
-<form class="toolbar" method="get">
+<form class="filters" method="get">
+  <div class="field filters__grow">
+    <label for="q">Search</label>
+    <div class="input-icon">
+      {% include "pos/_icon.html" with name="search" %}
+      <input type="search" id="q" name="q" class="input" value="{{ search_term }}"
+             placeholder="Employee ID, name, email, phone or position">
+    </div>
+  </div>
   <div class="field">
     <label for="role">Role</label>
     <select id="role" name="role" class="select">
       <option value="">All roles</option>
-      <option value="ADMIN" {% if selected_role == 'ADMIN' %}selected{% endif %}>Administrator</option>
-      <option value="MANAGER" {% if selected_role == 'MANAGER' %}selected{% endif %}>Manager</option>
-      <option value="CASHIER" {% if selected_role == 'CASHIER' %}selected{% endif %}>Cashier</option>
-      <option value="INVENTORY" {% if selected_role == 'INVENTORY' %}selected{% endif %}>Inventory Staff</option>
+      {% for value, label in roles %}
+        <option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
     </select>
   </div>
   <div class="field">
     <label for="status">Status</label>
     <select id="status" name="status" class="select">
       <option value="">All</option>
-      <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Awaiting approval</option>
       <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+      <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Awaiting approval</option>
       <option value="disabled" {% if selected_status == 'disabled' %}selected{% endif %}>Disabled</option>
     </select>
   </div>
-  <button type="submit" class="btn btn--ghost">Filter</button>
+  <div class="filters__actions">
+    <button type="submit" class="btn">
+      {% include "pos/_icon.html" with name="filter" %} Filter
+    </button>
+    <a class="btn btn--ghost" href="{% url 'pos:employee_list' %}">
+      {% include "pos/_icon.html" with name="refresh" %} Reset
+    </a>
+  </div>
 </form>
 
 <section class="card">
   <div class="card__body card__body--flush">
     <div class="table-wrap">
-      <table class="data">
-        <thead><tr><th>Employee</th><th>Username</th><th>Employee ID</th><th>Role</th><th>Phone</th><th class="num">Sales</th><th>Status</th><th></th></tr></thead>
+      <table class="data data--stack">
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Employee Name</th>
+            <th>Role</th>
+            <th>Phone</th>
+            <th class="num">Sales</th>
+            <th>Status</th>
+            <th>Email</th>
+            <th class="num">Action</th>
+          </tr>
+        </thead>
         <tbody>
           {% for employee in page_obj %}
             <tr>
-              <td><strong>{{ employee.display_name }}</strong>
-                {% if employee.position %}<div class="muted small">{{ employee.position }}</div>{% endif %}
+              <td data-label="Employee ID" class="nowrap">
+                <span class="badge badge--brand">{{ employee.employee_id|default:"—" }}</span>
               </td>
-              <td class="muted">{{ employee.username }}</td>
-              <td class="muted">{{ employee.employee_id|default:"—" }}</td>
-              <td><span class="badge badge--info">{{ employee.get_role_display }}</span></td>
-              <td class="nowrap">{{ employee.phone|default:"—" }}</td>
-              <td class="num">{{ employee.sale_count }}</td>
-              <td>
-                {% if employee.is_active %}<span class="badge badge--success">Active</span>
-                {% elif not employee.last_login %}<span class="badge badge--warn">Awaiting approval</span>
-                {% else %}<span class="badge badge--danger">Disabled</span>{% endif %}
+              {# Name comes from the existing first/last name fields. #}
+              {# full_name, not display_name: the latter falls back to the #}
+              {# username, which must never appear on this screen. #}
+              <td data-label="Employee Name">
+                <div class="media-cell">
+                  <span class="avatar">
+                    {% if employee.full_name %}{{ employee.full_name|slice:":1"|upper }}
+                    {% else %}{% include "pos/_icon.html" with name="user" cls="icon--sm" %}{% endif %}
+                  </span>
+                  <div class="media-cell__text">
+                    {% if employee.full_name %}
+                      <div class="media-cell__title">{{ employee.full_name }}</div>
+                    {% else %}
+                      <div class="media-cell__title soft">Name not set</div>
+                    {% endif %}
+                    {% if employee.position %}
+                      <div class="media-cell__sub">{{ employee.position }}</div>
+                    {% endif %}
+                  </div>
+                </div>
               </td>
-              <td class="num nowrap">
-                <a class="btn btn--ghost btn--sm" href="{% url 'pos:employee_update' employee.pk %}">Edit</a>
-                {% if employee != user %}
-                  <form method="post" action="{% url 'pos:employee_toggle' employee.pk %}" style="display:inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn--ghost btn--sm">
-                      {% if employee.is_active %}Disable{% elif not employee.last_login %}Approve{% else %}Enable{% endif %}
-                    </button>
-                  </form>
+              <td data-label="Role">
+                {% if employee.role == 'ADMIN' %}
+                  <span class="badge badge--danger">{{ employee.get_role_display }}</span>
+                {% elif employee.role == 'MANAGER' %}
+                  <span class="badge badge--info">{{ employee.get_role_display }}</span>
+                {% elif employee.role == 'INVENTORY' %}
+                  <span class="badge badge--warn">{{ employee.get_role_display }}</span>
+                {% else %}
+                  <span class="badge">{{ employee.get_role_display }}</span>
                 {% endif %}
+              </td>
+              <td data-label="Phone" class="nowrap">
+                {% if employee.phone %}
+                  <a href="tel:{{ employee.phone }}">{{ employee.phone }}</a>
+                {% else %}<span class="soft">—</span>{% endif %}
+              </td>
+              <td data-label="Sales" class="num">
+                <span class="strong">{{ employee.sale_count|intcomma }}</span>
+                <div class="media-cell__sub">{{ currency }} {{ employee.sale_total|floatformat:2|intcomma }}</div>
+              </td>
+              <td data-label="Status">
+                {% if employee.is_active %}
+                  <span class="badge badge--success"><span class="badge__dot"></span>Active</span>
+                {% elif not employee.last_login %}
+                  <span class="badge badge--warn"><span class="badge__dot"></span>Awaiting approval</span>
+                {% else %}
+                  <span class="badge badge--danger"><span class="badge__dot"></span>Disabled</span>
+                {% endif %}
+              </td>
+              <td data-label="Email" class="muted">
+                {% if employee.email %}
+                  <a href="mailto:{{ employee.email }}">{{ employee.email }}</a>
+                {% else %}<span class="soft">—</span>{% endif %}
+              </td>
+              <td data-label="Action" class="num">
+                <div class="act-group">
+                  <a class="act act--edit" href="{% url 'pos:employee_update' employee.pk %}" title="Edit">
+                    {% include "pos/_icon.html" with name="edit" cls="icon--sm" %}
+                  </a>
+                  {% if employee != user %}
+                    <form method="post" action="{% url 'pos:employee_toggle' employee.pk %}"
+                          data-confirm="{% if employee.is_active %}Disable {{ employee.full_name|default:employee.employee_id }} ({{ employee.employee_id }})? They will not be able to sign in until re-enabled.{% else %}Enable {{ employee.full_name|default:employee.employee_id }} ({{ employee.employee_id }}) so they can sign in?{% endif %}"
+                          data-confirm-label="{% if employee.is_active %}Disable{% else %}Enable{% endif %}"
+                          data-confirm-tone="{% if employee.is_active %}danger{% else %}safe{% endif %}">
+                      {% csrf_token %}
+                      <button type="submit"
+                              class="act {% if employee.is_active %}act--danger{% else %}act--ok{% endif %}"
+                              title="{% if employee.is_active %}Disable{% elif not employee.last_login %}Approve{% else %}Enable{% endif %}">
+                        {% if employee.is_active %}
+                          {% include "pos/_icon.html" with name="lock" cls="icon--sm" %}
+                        {% else %}
+                          {% include "pos/_icon.html" with name="check" cls="icon--sm" %}
+                        {% endif %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="8"><div class="empty">No employees match this filter.</div></td></tr>
+            <tr><td colspan="8">
+              {% include "pos/_empty.html" with title="No employees match this filter" hint="Adjust the filters, or add a new employee account." icon="badge-user" %}
+            </td></tr>
           {% endfor %}
         </tbody>
       </table>

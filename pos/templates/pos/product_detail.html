@@ -1,7 +1,7 @@
 {% extends "pos/base.html" %}
 {% load humanize %}
 
-{% block topbar_actions %}
+{% block page_actions %}
   {% if 'product.manage' in capabilities %}
     <a class="btn btn--ghost" href="{% url 'pos:product_update' product.pk %}">Edit</a>
   {% endif %}

@@ -1,0 +1,136 @@
+{% extends "pos/base.html" %}
+{% load humanize %}
+
+{% comment %}
+Takings by the person who rang them up.
+
+"Collected" is cash actually kept -- tendered minus change handed back -- so
+it is the figure a till reconciliation should match. Usernames are never
+shown; staff are identified by name and employee ID.
+{% endcomment %}
+
+{% block page_actions %}
+  <a class="btn btn--ghost" href="{{ export_href }}">Export CSV</a>
+{% endblock %}
+
+{% block content %}
+{% include "pos/_report_nav.html" %}
+
+<form class="filters" method="get">
+  <div class="field">
+    <label for="{{ form.from_date.id_for_label }}">From Date</label>
+    {{ form.from_date }}{{ form.from_date.errors }}
+  </div>
+  <div class="field">
+    <label for="{{ form.to_date.id_for_label }}">To Date</label>
+    {{ form.to_date }}{{ form.to_date.errors }}
+  </div>
+  <div class="field">
+    <label for="role">Role</label>
+    <select id="role" name="role" class="select">
+      <option value="">All roles</option>
+      {% for value, label in roles %}
+        <option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filters__actions">
+    <button type="submit" class="btn">{% include "pos/_icon.html" with name="filter" %} Apply Filter</button>
+    <a class="btn btn--ghost" href="{% url 'pos:report_collections' %}">Reset</a>
+  </div>
+</form>
+
+<div class="stat-grid">
+  <div class="stat">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="wallet" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Total collected</div>
+    <div class="stat__value">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</div>
+    <div class="stat__meta">net of change given</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="receipt" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Transactions</div>
+    <div class="stat__value stat__value--plain">{{ totals.transactions|intcomma }}</div>
+  </div>
+</div>
+  <div class="stat stat--neutral">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="badge-user" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">People</div>
+    <div class="stat__value stat__value--plain">{{ totals.people|intcomma }}</div>
+    <div class="stat__meta">took at least one sale</div>
+  </div>
+</div>
+  <div class="stat stat--info">
+  <span class="stat__icon">{% include "pos/_icon.html" with name="layers" cls="icon--lg" %}</span>
+  <div class="stat__text">
+    <div class="stat__label">Items sold</div>
+    <div class="stat__value stat__value--plain">{{ totals.items|intcomma }}</div>
+  </div>
+</div>
+</div>
+
+{% include "pos/_chart.html" %}
+
+<section class="card">
+  <div class="card__head">
+    <h2>Collection by employee</h2>
+    <div class="spacer"></div>
+    <span class="muted small">{{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }}</span>
+  </div>
+
+  {% if page_obj %}
+    <div class="table-wrap"><table class="data">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Role</th>
+          <th class="num">Transactions</th>
+          <th class="num">Items</th>
+          <th class="num">Discount</th>
+          <th class="num">Refunded</th>
+          <th class="num">Average sale</th>
+          <th class="num">Collected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+          <tr>
+            <td>
+              <span class="strong">{{ row.name|default:"Unnamed" }}</span>
+              {% if row.employee_id %}
+                <div class="muted small">{{ row.employee_id }}</div>
+              {% endif %}
+            </td>
+            <td><span class="badge badge--info">{{ row.role }}</span></td>
+            <td class="num">{{ row.transactions|intcomma }}</td>
+            <td class="num">{{ row.items|intcomma }}</td>
+            <td class="num muted">{{ currency }} {{ row.discount|floatformat:2|intcomma }}</td>
+            <td class="num muted">{{ currency }} {{ row.refunded|floatformat:2|intcomma }}</td>
+            <td class="num">{{ currency }} {{ row.average|floatformat:2|intcomma }}</td>
+            <td class="num"><strong>{{ currency }} {{ row.collected|floatformat:2|intcomma }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <th></th>
+          <th class="num">{{ totals.transactions|intcomma }}</th>
+          <th class="num">{{ totals.items|intcomma }}</th>
+          <th class="num">{{ currency }} {{ totals.discount|floatformat:2|intcomma }}</th>
+          <th class="num">{{ currency }} {{ totals.refunded|floatformat:2|intcomma }}</th>
+          <th class="num"></th>
+          <th class="num">{{ currency }} {{ totals.collected|floatformat:2|intcomma }}</th>
+        </tr>
+      </tfoot>
+    </table></div>
+    {% include "pos/_pagination.html" %}
+  {% else %}
+    {% include "pos/_empty.html" with title="No collections in this range" hint="Widen the dates, or clear the role filter." icon="badge-user" %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% comment %}
+Line / area chart. Pass the chart dict built by charts.build_line_chart:
+
+    {% include "pos/_line_chart.html" with chart=trend_chart %}
+
+Renders nothing when the builder returned None (no data worth plotting).
+{% endcomment %}
+{% if chart %}
+<section class="card">
+  <div class="card__head">
+    <h2>{{ chart.title }}</h2>
+    <div class="spacer"></div>
+    <div class="chart-legend">
+      {% for item in chart.legend %}
+        <span class="chart-legend__item">
+          <span class="chart-legend__swatch" style="background:{{ item.colour }}"></span>
+          {{ item.label }}
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card__body">
+    <div class="chart-scroll">
+      <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}"
+           role="img" aria-label="{{ chart.title }}" preserveAspectRatio="xMidYMid meet">
+        {% for line in chart.gridlines %}
+          <line x1="{{ chart.axis_x }}" y1="{{ line.y }}"
+                x2="{{ chart.axis_right }}" y2="{{ line.y }}" class="chart__grid"/>
+          <text x="{{ chart.axis_x }}" y="{{ line.y }}" dx="-8" dy="4"
+                class="chart__axis-label" text-anchor="end">{{ line.value|floatformat:"-2" }}</text>
+        {% endfor %}
+
+        {% for series in chart.lines %}
+          {% if series.fill %}
+            <path d="{{ series.area }}" fill="{{ series.colour }}" class="chart__area"/>
+          {% endif %}
+          <path d="{{ series.path }}" stroke="{{ series.colour }}" class="chart__line"/>
+          {% for point in series.points %}
+            <circle cx="{{ point.x }}" cy="{{ point.y }}" r="3.5"
+                    fill="{{ series.colour }}" class="chart__dot">
+              <title>{{ point.label }} &mdash; {{ series.label }}: {{ point.value|floatformat:2 }}</title>
+            </circle>
+          {% endfor %}
+        {% endfor %}
+
+        {% for tick in chart.ticks %}
+          <text x="{{ tick.x }}" y="{{ chart.baseline }}" dy="17"
+                class="chart__label" text-anchor="middle">{{ tick.label }}</text>
+        {% endfor %}
+
+        <line x1="{{ chart.axis_x }}" y1="{{ chart.baseline }}"
+              x2="{{ chart.axis_right }}" y2="{{ chart.baseline }}" class="chart__axis"/>
+      </svg>
+    </div>
+  </div>
+</section>
+{% endif %}
